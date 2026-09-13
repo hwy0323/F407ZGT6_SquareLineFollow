@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription><name>F407ZGT6_SquareLineFollow</name><comment>F407 four-wheel TB6612 square-track line follower. Build with the included Makefile.</comment><projects/><buildSpec><buildCommand><name>org.eclipse.cdt.make.core.makeBuilder</name><arguments/></buildCommand></buildSpec><natures><nature>org.eclipse.cdt.core.cnature</nature><nature>org.eclipse.cdt.core.ccnature</nature></natures></projectDescription>
