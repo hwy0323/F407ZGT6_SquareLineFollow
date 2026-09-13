@@ -6,8 +6,8 @@
 #define SENSOR_AD1_PIN GPIO_PIN_1
 #define SENSOR_AD2_PIN GPIO_PIN_2
 #define SENSOR_OUT_PIN GPIO_PIN_10
-/* The documented NPN OUT interface inverts the module signal. Calibrate this value. */
-#define BLACK_LINE_LEVEL GPIO_PIN_SET
+/* Direct OUT wiring: the vendor manual's indicator is off on black, so start with low. */
+#define BLACK_LINE_LEVEL GPIO_PIN_RESET
 #define SENSOR_SWITCH_DELAY_US 50U
 #define SENSOR_LEFT_HALF_MASK 0x0FU
 #define SENSOR_RIGHT_HALF_MASK 0xF0U
@@ -122,7 +122,7 @@ static void GPIO_Init_All(void)
   gpio.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOD, &gpio);
 
-  /* PB0...PB2 select CD4051 channels. PB10 reads the protected OUT signal. */
+  /* PB0...PB2 select CD4051 channels. PB10 reads the direct OUT signal. */
   HAL_GPIO_WritePin(SENSOR_PORT, SENSOR_AD0_PIN | SENSOR_AD1_PIN | SENSOR_AD2_PIN,
                     GPIO_PIN_RESET);
   gpio.Pin = SENSOR_AD0_PIN | SENSOR_AD1_PIN | SENSOR_AD2_PIN;
