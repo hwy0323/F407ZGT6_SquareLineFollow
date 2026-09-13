@@ -6,8 +6,8 @@
 #define SENSOR_AD1_PIN GPIO_PIN_1
 #define SENSOR_AD2_PIN GPIO_PIN_2
 #define SENSOR_OUT_PIN GPIO_PIN_10
-/* Direct OUT wiring: the vendor manual's indicator is off on black, so start with low. */
-#define BLACK_LINE_LEVEL GPIO_PIN_RESET
+/* The actual track is detected when the module indicator is on. */
+#define BLACK_LINE_LEVEL GPIO_PIN_SET
 #define SENSOR_SWITCH_DELAY_US 50U
 #define SENSOR_LEFT_HALF_MASK 0x0FU
 #define SENSOR_RIGHT_HALF_MASK 0xF0U
