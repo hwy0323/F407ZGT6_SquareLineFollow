@@ -1,9 +1,14 @@
 #include "main.h"
 
-/* Gray sensor D0...D7: PE0...PE7, left to right when looking forward. */
-#define SENSOR_PORT GPIOE
-#define SENSOR_MASK 0x00FFU
-#define SENSOR_ACTIVE_LOW 1U
+/* CD4051 gray sensor: AD0...AD2 select one channel, OUT returns its level. */
+#define SENSOR_PORT GPIOB
+#define SENSOR_AD0_PIN GPIO_PIN_0
+#define SENSOR_AD1_PIN GPIO_PIN_1
+#define SENSOR_AD2_PIN GPIO_PIN_2
+#define SENSOR_OUT_PIN GPIO_PIN_10
+/* The documented NPN OUT interface inverts the module signal. Calibrate this value. */
+#define BLACK_LINE_LEVEL GPIO_PIN_SET
+#define SENSOR_SWITCH_DELAY_US 50U
 #define SENSOR_LEFT_HALF_MASK 0x0FU
 #define SENSOR_RIGHT_HALF_MASK 0xF0U
 #define SENSOR_CENTER_MASK 0x18U
@@ -84,6 +89,7 @@ static void SystemClock_Config(void)
   clk.APB1CLKDivider = RCC_HCLK_DIV4;
   clk.APB2CLKDivider = RCC_HCLK_DIV2;
   if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_5) != HAL_OK) Error_Stop();
+  SystemCoreClockUpdate();
 }
 
 static void GPIO_Init_All(void)
@@ -91,6 +97,7 @@ static void GPIO_Init_All(void)
   GPIO_InitTypeDef gpio = {0};
 
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
@@ -115,8 +122,16 @@ static void GPIO_Init_All(void)
   gpio.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOD, &gpio);
 
-  /* PE0...PE7 receive the eight gray sensor outputs. */
-  gpio.Pin = SENSOR_MASK;
+  /* PB0...PB2 select CD4051 channels. PB10 reads the protected OUT signal. */
+  HAL_GPIO_WritePin(SENSOR_PORT, SENSOR_AD0_PIN | SENSOR_AD1_PIN | SENSOR_AD2_PIN,
+                    GPIO_PIN_RESET);
+  gpio.Pin = SENSOR_AD0_PIN | SENSOR_AD1_PIN | SENSOR_AD2_PIN;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(SENSOR_PORT, &gpio);
+
+  gpio.Pin = SENSOR_OUT_PIN;
   gpio.Mode = GPIO_MODE_INPUT;
   gpio.Pull = GPIO_NOPULL;
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
@@ -164,6 +179,13 @@ static void PWM_Init_All(void)
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2) != HAL_OK) Error_Stop();
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3) != HAL_OK) Error_Stop();
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4) != HAL_OK) Error_Stop();
+}
+
+static void Microsecond_Delay_Init(void)
+{
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0U;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
 static void Status_LED(uint8_t on)
@@ -224,11 +246,37 @@ static void Motor_Stop_All(void)
   Motor_Set_Left_Right(0, 0);
 }
 
+static void Delay_Us(uint32_t microseconds)
+{
+  uint32_t start = DWT->CYCCNT;
+  uint32_t cycles = microseconds * (SystemCoreClock / 1000000U);
+
+  while ((DWT->CYCCNT - start) < cycles) { }
+}
+
+static void Sensor_Select_Channel(uint8_t channel)
+{
+  HAL_GPIO_WritePin(SENSOR_PORT, SENSOR_AD0_PIN,
+                    (channel & 0x01U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SENSOR_PORT, SENSOR_AD1_PIN,
+                    (channel & 0x02U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SENSOR_PORT, SENSOR_AD2_PIN,
+                    (channel & 0x04U) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+}
+
 static uint8_t Sensor_Read(void)
 {
-  uint8_t raw = (uint8_t)(SENSOR_PORT->IDR & SENSOR_MASK);
-  if (SENSOR_ACTIVE_LOW) return (uint8_t)(~raw & SENSOR_MASK);
-  return raw;
+  uint8_t sensor = 0U;
+  uint8_t channel;
+
+  for (channel = 0U; channel < 8U; channel++) {
+    Sensor_Select_Channel(channel);
+    Delay_Us(SENSOR_SWITCH_DELAY_US);
+    if (HAL_GPIO_ReadPin(SENSOR_PORT, SENSOR_OUT_PIN) == BLACK_LINE_LEVEL) {
+      sensor |= (uint8_t)(1U << channel);
+    }
+  }
+  return sensor;
 }
 
 static uint8_t Sensor_Count(uint8_t sensor)
@@ -425,6 +473,7 @@ int main(void)
 
   HAL_Init();
   SystemClock_Config();
+  Microsecond_Delay_Init();
   GPIO_Init_All();
   PWM_Init_All();
   Car_Stop();
