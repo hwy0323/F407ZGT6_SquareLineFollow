@@ -95,9 +95,15 @@ static uint32_t parking_progress_tick = 0U;
 static uint8_t menu_led_toggles_remaining = 0U;
 static uint8_t menu_led_is_on = 0U;
 static uint32_t menu_led_tick = 0U;
+static uint8_t ignore_stop_key_event = 0U;
 
 static void Car_Stop(void);
 static void Status_LED(uint8_t on);
+
+static uint8_t Key_Is_Pressed(void)
+{
+  return (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_RESET) ? 1U : 0U;
+}
 
 /*
  * Before the OLED is installed, PC13 gives a simple menu indication:
@@ -687,8 +693,7 @@ static KeyEvent Key_Read_Event(void)
   static uint8_t pressed = 0U;
   static uint8_t long_reported = 0U;
   static uint32_t pressed_tick = 0U;
-  uint8_t key_is_pressed =
-      (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_RESET) ? 1U : 0U;
+  uint8_t key_is_pressed = Key_Is_Pressed();
 
   if (key_is_pressed && !pressed) {
     HAL_Delay(20U);
@@ -733,10 +738,18 @@ int main(void)
   while (1) {
     uint32_t now = HAL_GetTick();
 
+    /* A running car stops as soon as PA15 is pressed. */
+    if (car_state != CAR_STOPPED && Key_Is_Pressed()) {
+      Car_Stop();
+      ignore_stop_key_event = 1U;
+      Menu_Indicate_Task(Menu_GetSelectedTask(), now);
+    }
+
     KeyEvent key_event = Key_Read_Event();
     if (key_event != KEY_EVENT_NONE) {
-      if (car_state != CAR_STOPPED) {
-        Car_Stop();
+      if (ignore_stop_key_event) {
+        /* The release after an emergency stop must not change selection. */
+        ignore_stop_key_event = 0U;
       } else {
         if (key_event == KEY_EVENT_SHORT) {
           Menu_Select_Next();
