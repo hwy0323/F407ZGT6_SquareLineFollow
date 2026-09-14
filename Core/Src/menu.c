@@ -3,12 +3,12 @@
 static MenuTaskId selected_task = MENU_TASK_1_SQUARE_LINE;
 
 static const char * const task_labels[] = {
-  "Task 1: square line follow",
-  "Task 2: side parking demo",
-  "Task 3: reserved",
-  "Task 4: reserved",
-  "Task 5: reserved",
-  "Task 6: reserved"
+  "TASK 1",
+  "TASK 2",
+  "TASK 3",
+  "TASK 4",
+  "TASK 5",
+  "TASK 6"
 };
 
 void Menu_Init(void)

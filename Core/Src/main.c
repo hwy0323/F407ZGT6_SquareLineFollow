@@ -1,5 +1,6 @@
 #include "main.h"
 #include "menu.h"
+#include "menu_display.h"
 
 /* CD4051 gray sensor: AD0...AD2 select one channel, OUT returns its level. */
 #define SENSOR_PORT GPIOB
@@ -518,6 +519,7 @@ static void Car_Stop(void)
   corner_hits = 0U;
   center_hits = 0U;
   Status_LED(0U);
+  MenuDisplay_Show_Stopped(Menu_GetSelectedTask());
 }
 
 static void Car_Start(TaskMode mode)
@@ -536,6 +538,11 @@ static void Car_Start(TaskMode mode)
   }
   menu_led_toggles_remaining = 0U;
   Status_LED(1U);
+  if (task_mode == TASK_SIDE_PARKING) {
+    MenuDisplay_Show_Running(MENU_TASK_2_SIDE_PARKING);
+  } else {
+    MenuDisplay_Show_Running(MENU_TASK_1_SQUARE_LINE);
+  }
 }
 
 static void Follow_Line(uint8_t sensor, uint32_t now)
@@ -733,7 +740,9 @@ int main(void)
   Encoder_Init_All();
   Car_Stop();
   Menu_Init();
+  MenuDisplay_Init();
   Menu_Indicate_Task(Menu_GetSelectedTask(), HAL_GetTick());
+  MenuDisplay_Show_Browse(Menu_GetSelectedTask());
 
   while (1) {
     uint32_t now = HAL_GetTick();
@@ -754,6 +763,7 @@ int main(void)
         if (key_event == KEY_EVENT_SHORT) {
           Menu_Select_Next();
           Menu_Indicate_Task(Menu_GetSelectedTask(), now);
+          MenuDisplay_Show_Browse(Menu_GetSelectedTask());
         } else if (Menu_GetSelectedTask() == MENU_TASK_1_SQUARE_LINE) {
           Car_Start(TASK_NORMAL_LINE);
         } else if (Menu_GetSelectedTask() == MENU_TASK_2_SIDE_PARKING) {
