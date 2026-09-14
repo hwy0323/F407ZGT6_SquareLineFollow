@@ -33,15 +33,13 @@
 #define CONTROL_PERIOD_MS 5U
 #define KEY_LONG_PRESS_MS 800U
 
-/* Side parking demo: start at A and enter the demo after the second corner. */
-#define PARK_START_TURN_COUNT 2U
+/* Side parking demo: drive straight first, then run the parking motion. */
 #define PARK_SLOT_ON_RIGHT 1U
 #define PARK_FOLLOW_SPEED 160
 #define PARK_DRIVE_SPEED 150
 #define PARK_INNER_SPEED 110
 #define PARK_OUTER_SPEED 190
-#define PARK_APPROACH_COUNTS 720U
-#define PARK_PASS_SLOT_COUNTS 190U
+#define PARK_STRAIGHT_AHEAD_COUNTS 220U
 #define PARK_TURN_IN_COUNTS 340U
 #define PARK_STRAIGHTEN_COUNTS 340U
 #define PARK_FINAL_ADJUST_COUNTS 85U
@@ -54,8 +52,7 @@ typedef enum {
   CAR_ENTERING_CORNER,
   CAR_TURNING,
   CAR_RECOVERING,
-  CAR_PARK_TO_CENTER,
-  CAR_PARK_PASS_SLOT,
+  CAR_PARK_STRAIGHT_AHEAD,
   CAR_PARK_REVERSE_TURN_IN,
   CAR_PARK_REVERSE_STRAIGHTEN,
   CAR_PARK_FINAL_ADJUST
@@ -484,13 +481,17 @@ static void Car_Stop(void)
 static void Car_Start(TaskMode mode)
 {
   task_mode = mode;
-  car_state = CAR_FOLLOWING;
   turn_direction = CORNER_NONE;
   candidate_corner = CORNER_NONE;
   corner_hits = 0U;
   center_hits = 0U;
   completed_turns = 0U;
   Encoder_Reset_Distance();
+  if (task_mode == TASK_SIDE_PARKING) {
+    Parking_Set_State(CAR_PARK_STRAIGHT_AHEAD, HAL_GetTick());
+  } else {
+    car_state = CAR_FOLLOWING;
+  }
   Status_LED(1U);
 }
 
@@ -529,23 +530,6 @@ static void Follow_Line(uint8_t sensor, uint32_t now)
 
   Motor_Set_Left_Right((int16_t)(FOLLOW_SPEED + correction),
                        (int16_t)(FOLLOW_SPEED - correction));
-}
-
-static uint8_t Follow_Line_To_Parking_Center(uint8_t sensor)
-{
-  int16_t correction;
-
-  if (sensor == 0U || Is_Ambiguous_Black_Area(sensor)) {
-    Car_Stop();
-    return 0U;
-  }
-
-  correction = (int16_t)(Sensor_Error(sensor) * FOLLOW_KP);
-  if (correction > FOLLOW_MAX_CORRECTION) correction = FOLLOW_MAX_CORRECTION;
-  if (correction < -FOLLOW_MAX_CORRECTION) correction = -FOLLOW_MAX_CORRECTION;
-  Motor_Set_Left_Right((int16_t)(PARK_FOLLOW_SPEED + correction),
-                       (int16_t)(PARK_FOLLOW_SPEED - correction));
-  return 1U;
 }
 
 static void Process_Corner(uint8_t sensor, uint32_t now)
@@ -588,10 +572,7 @@ static void Process_Corner(uint8_t sensor, uint32_t now)
     Motor_Set_Left_Right(CORNER_ENTER_SPEED, CORNER_ENTER_SPEED);
     if (now - state_start_tick >= TURN_RECOVER_TIME_MS) {
       completed_turns++;
-      if (task_mode == TASK_SIDE_PARKING &&
-          completed_turns == PARK_START_TURN_COUNT) {
-        Parking_Set_State(CAR_PARK_TO_CENTER, now);
-      } else if (LAP_TURN_LIMIT != 0U && completed_turns >= LAP_TURN_LIMIT) {
+      if (LAP_TURN_LIMIT != 0U && completed_turns >= LAP_TURN_LIMIT) {
         Car_Stop();
       } else {
         car_state = CAR_FOLLOWING;
@@ -620,16 +601,11 @@ static void Parking_Reverse_Straighten(void)
 
 static void Process_Side_Parking(uint8_t sensor, uint32_t now)
 {
-  if (car_state == CAR_PARK_TO_CENTER) {
-    if (!Follow_Line_To_Parking_Center(sensor)) return;
-    (void)Parking_Target_Reached(PARK_APPROACH_COUNTS,
-                                 CAR_PARK_PASS_SLOT, now);
-    return;
-  }
+  (void)sensor;
 
-  if (car_state == CAR_PARK_PASS_SLOT) {
+  if (car_state == CAR_PARK_STRAIGHT_AHEAD) {
     Motor_Set_Left_Right(PARK_DRIVE_SPEED, PARK_DRIVE_SPEED);
-    (void)Parking_Target_Reached(PARK_PASS_SLOT_COUNTS,
+    (void)Parking_Target_Reached(PARK_STRAIGHT_AHEAD_COUNTS,
                                  CAR_PARK_REVERSE_TURN_IN, now);
     return;
   }
