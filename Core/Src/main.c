@@ -1,4 +1,5 @@
 #include "main.h"
+#include "menu.h"
 
 /* CD4051 gray sensor: AD0...AD2 select one channel, OUT returns its level. */
 #define SENSOR_PORT GPIOB
@@ -31,7 +32,10 @@
 #define REACQUIRE_MAX_ACTIVE 2U
 #define LAP_TURN_LIMIT 4U
 #define CONTROL_PERIOD_MS 5U
-#define KEY_LONG_PRESS_MS 800U
+/* Button menu: a short press changes task; a 3 s hold confirms it. */
+#define KEY_SHORT_PRESS_MAX_MS 1000U
+#define KEY_LONG_PRESS_MS 3000U
+#define MENU_LED_FLASH_MS 160U
 
 /* Side parking demo: drive straight first, then run the parking motion. */
 #define PARK_SLOT_ON_RIGHT 1U
@@ -88,8 +92,40 @@ static uint8_t completed_turns = 0U;
 static uint32_t state_start_tick = 0U;
 static uint32_t parking_last_progress = 0U;
 static uint32_t parking_progress_tick = 0U;
+static uint8_t menu_led_toggles_remaining = 0U;
+static uint8_t menu_led_is_on = 0U;
+static uint32_t menu_led_tick = 0U;
 
 static void Car_Stop(void);
+static void Status_LED(uint8_t on);
+
+/*
+ * Before the OLED is installed, PC13 gives a simple menu indication:
+ * Task N is shown as N LED flashes. OLED code can instead display the
+ * values exported by menu.h; it does not need to change motor code.
+ */
+static void Menu_Indicate_Task(MenuTaskId task, uint32_t now)
+{
+  menu_led_toggles_remaining = (uint8_t)((uint8_t)task * 2U);
+  menu_led_is_on = 0U;
+  menu_led_tick = now - MENU_LED_FLASH_MS;
+  Status_LED(0U);
+}
+
+static void Menu_Process_Indicator(uint32_t now)
+{
+  if (menu_led_toggles_remaining == 0U) return;
+  if (now - menu_led_tick < MENU_LED_FLASH_MS) return;
+
+  menu_led_tick = now;
+  menu_led_is_on = menu_led_is_on ? 0U : 1U;
+  Status_LED(menu_led_is_on);
+  menu_led_toggles_remaining--;
+
+  if (menu_led_toggles_remaining == 0U) {
+    Status_LED(0U);
+  }
+}
 
 static void Error_Stop(void)
 {
@@ -492,6 +528,7 @@ static void Car_Start(TaskMode mode)
   } else {
     car_state = CAR_FOLLOWING;
   }
+  menu_led_toggles_remaining = 0U;
   Status_LED(1U);
 }
 
@@ -670,8 +707,9 @@ static KeyEvent Key_Read_Event(void)
   }
 
   if (!key_is_pressed && pressed) {
+    uint32_t pressed_ms = HAL_GetTick() - pressed_tick;
     pressed = 0U;
-    if (!long_reported) {
+    if (!long_reported && pressed_ms < KEY_SHORT_PRESS_MAX_MS) {
       return KEY_EVENT_SHORT;
     }
   }
@@ -689,6 +727,8 @@ int main(void)
   PWM_Init_All();
   Encoder_Init_All();
   Car_Stop();
+  Menu_Init();
+  Menu_Indicate_Task(Menu_GetSelectedTask(), HAL_GetTick());
 
   while (1) {
     uint32_t now = HAL_GetTick();
@@ -697,16 +737,26 @@ int main(void)
     if (key_event != KEY_EVENT_NONE) {
       if (car_state != CAR_STOPPED) {
         Car_Stop();
-      } else if (key_event == KEY_EVENT_LONG) {
-        Car_Start(TASK_SIDE_PARKING);
       } else {
-        Car_Start(TASK_NORMAL_LINE);
+        if (key_event == KEY_EVENT_SHORT) {
+          Menu_Select_Next();
+          Menu_Indicate_Task(Menu_GetSelectedTask(), now);
+        } else if (Menu_GetSelectedTask() == MENU_TASK_1_SQUARE_LINE) {
+          Car_Start(TASK_NORMAL_LINE);
+        } else if (Menu_GetSelectedTask() == MENU_TASK_2_SIDE_PARKING) {
+          Car_Start(TASK_SIDE_PARKING);
+        } else {
+          /* Reserved tasks do not move the car until their code exists. */
+          Menu_Indicate_Task(Menu_GetSelectedTask(), now);
+        }
       }
     }
 
     if (car_state != CAR_STOPPED && now - control_tick >= CONTROL_PERIOD_MS) {
       control_tick = now;
       Car_Process(now);
+    } else if (car_state == CAR_STOPPED) {
+      Menu_Process_Indicator(now);
     }
     HAL_Delay(1U);
   }
