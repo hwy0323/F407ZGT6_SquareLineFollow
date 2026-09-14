@@ -33,14 +33,14 @@
 #define CONTROL_PERIOD_MS 5U
 #define KEY_LONG_PRESS_MS 800U
 
-/* Side parking: start at A and follow A->B->C->D before entering DA. */
-#define PARK_DA_ENTRY_TURN_COUNT 3U
+/* Side parking demo: start at A and enter the demo after the second corner. */
+#define PARK_START_TURN_COUNT 2U
 #define PARK_SLOT_ON_RIGHT 1U
 #define PARK_FOLLOW_SPEED 160
 #define PARK_DRIVE_SPEED 150
 #define PARK_INNER_SPEED 110
 #define PARK_OUTER_SPEED 190
-#define PARK_DA_CENTER_COUNTS 720U
+#define PARK_APPROACH_COUNTS 720U
 #define PARK_PASS_SLOT_COUNTS 190U
 #define PARK_TURN_IN_COUNTS 340U
 #define PARK_STRAIGHTEN_COUNTS 340U
@@ -589,7 +589,7 @@ static void Process_Corner(uint8_t sensor, uint32_t now)
     if (now - state_start_tick >= TURN_RECOVER_TIME_MS) {
       completed_turns++;
       if (task_mode == TASK_SIDE_PARKING &&
-          completed_turns == PARK_DA_ENTRY_TURN_COUNT) {
+          completed_turns == PARK_START_TURN_COUNT) {
         Parking_Set_State(CAR_PARK_TO_CENTER, now);
       } else if (LAP_TURN_LIMIT != 0U && completed_turns >= LAP_TURN_LIMIT) {
         Car_Stop();
@@ -622,7 +622,7 @@ static void Process_Side_Parking(uint8_t sensor, uint32_t now)
 {
   if (car_state == CAR_PARK_TO_CENTER) {
     if (!Follow_Line_To_Parking_Center(sensor)) return;
-    (void)Parking_Target_Reached(PARK_DA_CENTER_COUNTS,
+    (void)Parking_Target_Reached(PARK_APPROACH_COUNTS,
                                  CAR_PARK_PASS_SLOT, now);
     return;
   }
