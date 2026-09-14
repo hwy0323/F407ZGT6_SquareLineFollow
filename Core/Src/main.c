@@ -31,14 +31,46 @@
 #define REACQUIRE_MAX_ACTIVE 2U
 #define LAP_TURN_LIMIT 4U
 #define CONTROL_PERIOD_MS 5U
+#define KEY_LONG_PRESS_MS 800U
+
+/* Side parking: start at A and follow A->B->C->D before entering DA. */
+#define PARK_DA_ENTRY_TURN_COUNT 3U
+#define PARK_SLOT_ON_RIGHT 1U
+#define PARK_FOLLOW_SPEED 160
+#define PARK_DRIVE_SPEED 150
+#define PARK_INNER_SPEED 110
+#define PARK_OUTER_SPEED 190
+#define PARK_DA_CENTER_COUNTS 720U
+#define PARK_PASS_SLOT_COUNTS 190U
+#define PARK_TURN_IN_COUNTS 340U
+#define PARK_STRAIGHTEN_COUNTS 340U
+#define PARK_FINAL_ADJUST_COUNTS 85U
+#define PARK_ENCODER_STALL_MS 300U
+#define PARK_STEP_TIMEOUT_MS 5000U
 
 typedef enum {
   CAR_STOPPED,
   CAR_FOLLOWING,
   CAR_ENTERING_CORNER,
   CAR_TURNING,
-  CAR_RECOVERING
+  CAR_RECOVERING,
+  CAR_PARK_TO_CENTER,
+  CAR_PARK_PASS_SLOT,
+  CAR_PARK_REVERSE_TURN_IN,
+  CAR_PARK_REVERSE_STRAIGHTEN,
+  CAR_PARK_FINAL_ADJUST
 } CarState;
+
+typedef enum {
+  TASK_NORMAL_LINE,
+  TASK_SIDE_PARKING
+} TaskMode;
+
+typedef enum {
+  KEY_EVENT_NONE,
+  KEY_EVENT_SHORT,
+  KEY_EVENT_LONG
+} KeyEvent;
 
 typedef enum {
   CORNER_NONE,
@@ -47,13 +79,20 @@ typedef enum {
 } CornerDirection;
 
 static TIM_HandleTypeDef htim1;
+static TIM_HandleTypeDef htim3;
+static TIM_HandleTypeDef htim4;
 static CarState car_state = CAR_STOPPED;
+static TaskMode task_mode = TASK_NORMAL_LINE;
 static CornerDirection turn_direction = CORNER_NONE;
 static CornerDirection candidate_corner = CORNER_NONE;
 static uint8_t corner_hits = 0U;
 static uint8_t center_hits = 0U;
 static uint8_t completed_turns = 0U;
 static uint32_t state_start_tick = 0U;
+static uint32_t parking_last_progress = 0U;
+static uint32_t parking_progress_tick = 0U;
+
+static void Car_Stop(void);
 
 static void Error_Stop(void)
 {
@@ -137,6 +176,21 @@ static void GPIO_Init_All(void)
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SENSOR_PORT, &gpio);
 
+  /* GT50 Hall encoder inputs: left front=TIM4 PB6/PB7, right front=TIM3 PB4/PB5. */
+  gpio.Pin = GPIO_PIN_4 | GPIO_PIN_5;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF2_TIM3;
+  HAL_GPIO_Init(GPIOB, &gpio);
+
+  gpio.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF2_TIM4;
+  HAL_GPIO_Init(GPIOB, &gpio);
+
   /* PWM: A=PE9, B=PE11, C=PE13, D=PE14, all from TIM1. */
   gpio.Pin = GPIO_PIN_9 | GPIO_PIN_11 | GPIO_PIN_13 | GPIO_PIN_14;
   gpio.Mode = GPIO_MODE_AF_PP;
@@ -179,6 +233,41 @@ static void PWM_Init_All(void)
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2) != HAL_OK) Error_Stop();
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3) != HAL_OK) Error_Stop();
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4) != HAL_OK) Error_Stop();
+}
+
+static void Encoder_Init_All(void)
+{
+  TIM_Encoder_InitTypeDef encoder = {0};
+
+  encoder.EncoderMode = TIM_ENCODERMODE_TI12;
+  encoder.IC1Polarity = TIM_ICPOLARITY_RISING;
+  encoder.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  encoder.IC1Prescaler = TIM_ICPSC_DIV1;
+  encoder.IC1Filter = 8U;
+  encoder.IC2Polarity = TIM_ICPOLARITY_RISING;
+  encoder.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  encoder.IC2Prescaler = TIM_ICPSC_DIV1;
+  encoder.IC2Filter = 8U;
+
+  __HAL_RCC_TIM3_CLK_ENABLE();
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0U;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 0xFFFFU;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Encoder_Init(&htim3, &encoder) != HAL_OK) Error_Stop();
+  if (HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL) != HAL_OK) Error_Stop();
+
+  __HAL_RCC_TIM4_CLK_ENABLE();
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0U;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 0xFFFFU;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Encoder_Init(&htim4, &encoder) != HAL_OK) Error_Stop();
+  if (HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL) != HAL_OK) Error_Stop();
 }
 
 static void Microsecond_Delay_Init(void)
@@ -244,6 +333,57 @@ static void Motor_Set_Left_Right(int16_t left_speed, int16_t right_speed)
 static void Motor_Stop_All(void)
 {
   Motor_Set_Left_Right(0, 0);
+}
+
+static uint32_t Encoder_Absolute_Count(TIM_HandleTypeDef *timer)
+{
+  int16_t count = (int16_t)__HAL_TIM_GET_COUNTER(timer);
+  return (count < 0) ? (uint32_t)(-count) : (uint32_t)count;
+}
+
+static uint32_t Encoder_Travel_Count(void)
+{
+  uint32_t left = Encoder_Absolute_Count(&htim4);
+  uint32_t right = Encoder_Absolute_Count(&htim3);
+  return (left + right) / 2U;
+}
+
+static void Encoder_Reset_Distance(void)
+{
+  __HAL_TIM_SET_COUNTER(&htim3, 0U);
+  __HAL_TIM_SET_COUNTER(&htim4, 0U);
+}
+
+static void Parking_Set_State(CarState next_state, uint32_t now)
+{
+  car_state = next_state;
+  state_start_tick = now;
+  parking_last_progress = 0U;
+  parking_progress_tick = now;
+  Encoder_Reset_Distance();
+}
+
+static uint8_t Parking_Target_Reached(uint32_t target_count, CarState next_state,
+                                      uint32_t now)
+{
+  uint32_t progress = Encoder_Travel_Count();
+
+  if (progress >= target_count) {
+    Parking_Set_State(next_state, now);
+    return 1U;
+  }
+
+  if (progress != parking_last_progress) {
+    parking_last_progress = progress;
+    parking_progress_tick = now;
+  }
+
+  if (now - parking_progress_tick > PARK_ENCODER_STALL_MS ||
+      now - state_start_tick > PARK_STEP_TIMEOUT_MS) {
+    Car_Stop();
+    return 1U;
+  }
+  return 0U;
 }
 
 static void Delay_Us(uint32_t microseconds)
@@ -341,14 +481,16 @@ static void Car_Stop(void)
   Status_LED(0U);
 }
 
-static void Car_Start(void)
+static void Car_Start(TaskMode mode)
 {
+  task_mode = mode;
   car_state = CAR_FOLLOWING;
   turn_direction = CORNER_NONE;
   candidate_corner = CORNER_NONE;
   corner_hits = 0U;
   center_hits = 0U;
   completed_turns = 0U;
+  Encoder_Reset_Distance();
   Status_LED(1U);
 }
 
@@ -387,6 +529,23 @@ static void Follow_Line(uint8_t sensor, uint32_t now)
 
   Motor_Set_Left_Right((int16_t)(FOLLOW_SPEED + correction),
                        (int16_t)(FOLLOW_SPEED - correction));
+}
+
+static uint8_t Follow_Line_To_Parking_Center(uint8_t sensor)
+{
+  int16_t correction;
+
+  if (sensor == 0U || Is_Ambiguous_Black_Area(sensor)) {
+    Car_Stop();
+    return 0U;
+  }
+
+  correction = (int16_t)(Sensor_Error(sensor) * FOLLOW_KP);
+  if (correction > FOLLOW_MAX_CORRECTION) correction = FOLLOW_MAX_CORRECTION;
+  if (correction < -FOLLOW_MAX_CORRECTION) correction = -FOLLOW_MAX_CORRECTION;
+  Motor_Set_Left_Right((int16_t)(PARK_FOLLOW_SPEED + correction),
+                       (int16_t)(PARK_FOLLOW_SPEED - correction));
+  return 1U;
 }
 
 static void Process_Corner(uint8_t sensor, uint32_t now)
@@ -429,11 +588,72 @@ static void Process_Corner(uint8_t sensor, uint32_t now)
     Motor_Set_Left_Right(CORNER_ENTER_SPEED, CORNER_ENTER_SPEED);
     if (now - state_start_tick >= TURN_RECOVER_TIME_MS) {
       completed_turns++;
-      if (LAP_TURN_LIMIT != 0U && completed_turns >= LAP_TURN_LIMIT) {
+      if (task_mode == TASK_SIDE_PARKING &&
+          completed_turns == PARK_DA_ENTRY_TURN_COUNT) {
+        Parking_Set_State(CAR_PARK_TO_CENTER, now);
+      } else if (LAP_TURN_LIMIT != 0U && completed_turns >= LAP_TURN_LIMIT) {
         Car_Stop();
       } else {
         car_state = CAR_FOLLOWING;
       }
+    }
+  }
+}
+
+static void Parking_Reverse_Turn_Into_Slot(void)
+{
+  if (PARK_SLOT_ON_RIGHT) {
+    Motor_Set_Left_Right(-PARK_INNER_SPEED, -PARK_OUTER_SPEED);
+  } else {
+    Motor_Set_Left_Right(-PARK_OUTER_SPEED, -PARK_INNER_SPEED);
+  }
+}
+
+static void Parking_Reverse_Straighten(void)
+{
+  if (PARK_SLOT_ON_RIGHT) {
+    Motor_Set_Left_Right(-PARK_OUTER_SPEED, -PARK_INNER_SPEED);
+  } else {
+    Motor_Set_Left_Right(-PARK_INNER_SPEED, -PARK_OUTER_SPEED);
+  }
+}
+
+static void Process_Side_Parking(uint8_t sensor, uint32_t now)
+{
+  if (car_state == CAR_PARK_TO_CENTER) {
+    if (!Follow_Line_To_Parking_Center(sensor)) return;
+    (void)Parking_Target_Reached(PARK_DA_CENTER_COUNTS,
+                                 CAR_PARK_PASS_SLOT, now);
+    return;
+  }
+
+  if (car_state == CAR_PARK_PASS_SLOT) {
+    Motor_Set_Left_Right(PARK_DRIVE_SPEED, PARK_DRIVE_SPEED);
+    (void)Parking_Target_Reached(PARK_PASS_SLOT_COUNTS,
+                                 CAR_PARK_REVERSE_TURN_IN, now);
+    return;
+  }
+
+  if (car_state == CAR_PARK_REVERSE_TURN_IN) {
+    Parking_Reverse_Turn_Into_Slot();
+    (void)Parking_Target_Reached(PARK_TURN_IN_COUNTS,
+                                 CAR_PARK_REVERSE_STRAIGHTEN, now);
+    return;
+  }
+
+  if (car_state == CAR_PARK_REVERSE_STRAIGHTEN) {
+    Parking_Reverse_Straighten();
+    (void)Parking_Target_Reached(PARK_STRAIGHTEN_COUNTS,
+                                 CAR_PARK_FINAL_ADJUST, now);
+    return;
+  }
+
+  if (car_state == CAR_PARK_FINAL_ADJUST) {
+    Motor_Set_Left_Right(PARK_DRIVE_SPEED, PARK_DRIVE_SPEED);
+    if (Parking_Target_Reached(PARK_FINAL_ADJUST_COUNTS, CAR_STOPPED, now)) {
+      Motor_Stop_All();
+      car_state = CAR_STOPPED;
+      Status_LED(0U);
     }
   }
 }
@@ -446,25 +666,40 @@ static void Car_Process(uint32_t now)
   else if (car_state == CAR_ENTERING_CORNER ||
            car_state == CAR_TURNING ||
            car_state == CAR_RECOVERING) Process_Corner(sensor, now);
+  else Process_Side_Parking(sensor, now);
 }
 
-static uint8_t Key_Clicked(void)
+static KeyEvent Key_Read_Event(void)
 {
-  static uint8_t released = 1U;
+  static uint8_t pressed = 0U;
+  static uint8_t long_reported = 0U;
+  static uint32_t pressed_tick = 0U;
+  uint8_t key_is_pressed =
+      (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_RESET) ? 1U : 0U;
 
-  if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_SET) {
-    released = 1U;
-    return 0U;
-  }
-
-  if (released) {
+  if (key_is_pressed && !pressed) {
     HAL_Delay(20U);
     if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_RESET) {
-      released = 0U;
-      return 1U;
+      pressed = 1U;
+      long_reported = 0U;
+      pressed_tick = HAL_GetTick();
+    }
+    return KEY_EVENT_NONE;
+  }
+
+  if (key_is_pressed && pressed && !long_reported &&
+      HAL_GetTick() - pressed_tick >= KEY_LONG_PRESS_MS) {
+    long_reported = 1U;
+    return KEY_EVENT_LONG;
+  }
+
+  if (!key_is_pressed && pressed) {
+    pressed = 0U;
+    if (!long_reported) {
+      return KEY_EVENT_SHORT;
     }
   }
-  return 0U;
+  return KEY_EVENT_NONE;
 }
 
 int main(void)
@@ -476,14 +711,21 @@ int main(void)
   Microsecond_Delay_Init();
   GPIO_Init_All();
   PWM_Init_All();
+  Encoder_Init_All();
   Car_Stop();
 
   while (1) {
     uint32_t now = HAL_GetTick();
 
-    if (Key_Clicked()) {
-      if (car_state == CAR_STOPPED) Car_Start();
-      else Car_Stop();
+    KeyEvent key_event = Key_Read_Event();
+    if (key_event != KEY_EVENT_NONE) {
+      if (car_state != CAR_STOPPED) {
+        Car_Stop();
+      } else if (key_event == KEY_EVENT_LONG) {
+        Car_Start(TASK_SIDE_PARKING);
+      } else {
+        Car_Start(TASK_NORMAL_LINE);
+      }
     }
 
     if (car_state != CAR_STOPPED && now - control_tick >= CONTROL_PERIOD_MS) {
