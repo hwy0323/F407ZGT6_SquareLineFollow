@@ -66,6 +66,7 @@
 /* T4 UART motor and encoder test: 115200 bps. */
 #define DIAGNOSTIC_SPEED 120
 #define DIAGNOSTIC_REPORT_MS 200U
+#define DIAGNOSTIC_AUTO_START 1U
 
 typedef enum {
   CAR_STOPPED,
@@ -963,8 +964,13 @@ int main(void)
   Car_Stop();
   Menu_Init();
   MenuDisplay_Init();
+#if DIAGNOSTIC_AUTO_START
+  /* Dedicated bench-test firmware: T4 starts automatically but motors stay stopped. */
+  Car_Start(TASK_DIAGNOSTIC);
+#else
   Menu_Indicate_Task(Menu_GetSelectedTask(), HAL_GetTick());
   MenuDisplay_Show_Browse(Menu_GetSelectedTask());
+#endif
 
   while (1) {
     uint32_t now = HAL_GetTick();
