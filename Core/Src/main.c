@@ -64,7 +64,7 @@
 #define REVERSE_PARK_MAX_CORRECTION 45
 
 /* T4 UART motor and encoder test: 115200 bps. */
-#define DIAGNOSTIC_SPEED 120
+#define DIAGNOSTIC_SPEED 180
 #define DIAGNOSTIC_REPORT_MS 200U
 #define DIAGNOSTIC_AUTO_START 1U
 
@@ -874,13 +874,17 @@ static void Diagnostic_Handle_Command(uint8_t command)
   else if (command == '2') Motor_Set_Test_One(2U, DIAGNOSTIC_SPEED);
   else if (command == '3') Motor_Set_Test_One(3U, DIAGNOSTIC_SPEED);
   else if (command == '4') Motor_Set_Test_One(4U, DIAGNOSTIC_SPEED);
+  else if (command == 'A') Motor_Set_Test_One(1U, -DIAGNOSTIC_SPEED);
+  else if (command == 'B') Motor_Set_Test_One(2U, -DIAGNOSTIC_SPEED);
+  else if (command == 'C') Motor_Set_Test_One(3U, -DIAGNOSTIC_SPEED);
+  else if (command == 'D') Motor_Set_Test_One(4U, -DIAGNOSTIC_SPEED);
   else if (command == 'f') Motor_Set_Left_Right(DIAGNOSTIC_SPEED, DIAGNOSTIC_SPEED);
   else if (command == 'b') Motor_Set_Left_Right(-DIAGNOSTIC_SPEED, -DIAGNOSTIC_SPEED);
   else if (command == 's') Motor_Stop_All();
   else if (command == 'r') Encoder_Reset_Distance();
   else if (command == 'p') Diagnostic_Report();
   else if (command == 'h') {
-    Diagnostic_Send("CMD 1-4=one wheel f=forward b=back s=stop r=reset p=print q=exit\\r\\n");
+    Diagnostic_Send("CMD 1-4=forward A-D=reverse f=all forward b=all reverse s=stop r=reset p=print q=exit\\r\\n");
   } else if (command == 'q') {
     Car_Stop();
   }
