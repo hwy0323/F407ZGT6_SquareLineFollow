@@ -66,7 +66,10 @@
 /* T4 UART motor and encoder test: 115200 bps. */
 #define DIAGNOSTIC_SPEED 180
 #define DIAGNOSTIC_REPORT_MS 200U
-#define DIAGNOSTIC_AUTO_START 1U
+#define DIAGNOSTIC_AUTO_START 0U
+
+/* Bench demo: a short PA15 press starts the encoder-only side parking motion. */
+#define SIDE_PARKING_DEMO_ON_KEY 1U
 
 typedef enum {
   CAR_STOPPED,
@@ -501,10 +504,11 @@ static uint32_t Encoder_Right_Count(void)
 static uint32_t Encoder_Travel_Count(void)
 {
   uint32_t left_front = Encoder_Absolute_Count(&htim4);
-  uint32_t right_front = Encoder_Absolute_Count(&htim3);
   uint32_t left_rear = Encoder_Absolute_Count(&htim8);
   uint32_t right_rear = Encoder_Absolute_Count(&htim2);
-  return (left_front + right_front + left_rear + right_rear) / 4U;
+
+  /* Right-front E2 has no valid signal in the current chassis wiring. */
+  return (left_front + left_rear + right_rear) / 3U;
 }
 
 static void Encoder_Reset_Distance(void)
@@ -991,6 +995,10 @@ int main(void)
       if (ignore_stop_key_event) {
         /* The release after an emergency stop must not change selection. */
         ignore_stop_key_event = 0U;
+#if SIDE_PARKING_DEMO_ON_KEY
+      } else if (key_event == KEY_EVENT_SHORT || key_event == KEY_EVENT_LONG) {
+        Car_Start(TASK_SIDE_PARKING);
+#endif
       } else {
         if (key_event == KEY_EVENT_SHORT) {
           Menu_Select_Next();
