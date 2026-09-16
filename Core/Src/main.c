@@ -94,8 +94,10 @@ typedef enum {
 } CornerDirection;
 
 static TIM_HandleTypeDef htim1;
+static TIM_HandleTypeDef htim2;
 static TIM_HandleTypeDef htim3;
 static TIM_HandleTypeDef htim4;
+static TIM_HandleTypeDef htim8;
 static CarState car_state = CAR_STOPPED;
 static TaskMode task_mode = TASK_NORMAL_LINE;
 static CornerDirection turn_direction = CORNER_NONE;
@@ -229,7 +231,8 @@ static void GPIO_Init_All(void)
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SENSOR_PORT, &gpio);
 
-  /* GT50 Hall encoder inputs: left front=TIM4 PB6/PB7, right front=TIM3 PB4/PB5. */
+  /* Four GT50 Hall encoders, one timer for each wheel. */
+  /* Right front: TIM3 CH1/CH2 = PB4/PB5. */
   gpio.Pin = GPIO_PIN_4 | GPIO_PIN_5;
   gpio.Mode = GPIO_MODE_AF_PP;
   gpio.Pull = GPIO_PULLUP;
@@ -243,6 +246,22 @@ static void GPIO_Init_All(void)
   gpio.Speed = GPIO_SPEED_FREQ_HIGH;
   gpio.Alternate = GPIO_AF2_TIM4;
   HAL_GPIO_Init(GPIOB, &gpio);
+
+  /* Right rear: TIM2 CH1/CH2 = PA0/PA1. */
+  gpio.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF1_TIM2;
+  HAL_GPIO_Init(GPIOA, &gpio);
+
+  /* Left rear: TIM8 CH1/CH2 = PC6/PC7. */
+  gpio.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF3_TIM8;
+  HAL_GPIO_Init(GPIOC, &gpio);
 
   /* PWM: A=PE9, B=PE11, C=PE13, D=PE14, all from TIM1. */
   gpio.Pin = GPIO_PIN_9 | GPIO_PIN_11 | GPIO_PIN_13 | GPIO_PIN_14;
@@ -302,6 +321,17 @@ static void Encoder_Init_All(void)
   encoder.IC2Prescaler = TIM_ICPSC_DIV1;
   encoder.IC2Filter = 8U;
 
+  __HAL_RCC_TIM2_CLK_ENABLE();
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0U;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  /* Use a signed 16-bit range like the other wheel counters. */
+  htim2.Init.Period = 0xFFFFU;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Encoder_Init(&htim2, &encoder) != HAL_OK) Error_Stop();
+  if (HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL) != HAL_OK) Error_Stop();
+
   __HAL_RCC_TIM3_CLK_ENABLE();
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0U;
@@ -321,6 +351,16 @@ static void Encoder_Init_All(void)
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Encoder_Init(&htim4, &encoder) != HAL_OK) Error_Stop();
   if (HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL) != HAL_OK) Error_Stop();
+
+  __HAL_RCC_TIM8_CLK_ENABLE();
+  htim8.Instance = TIM8;
+  htim8.Init.Prescaler = 0U;
+  htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim8.Init.Period = 0xFFFFU;
+  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Encoder_Init(&htim8, &encoder) != HAL_OK) Error_Stop();
+  if (HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL) != HAL_OK) Error_Stop();
 }
 
 static void Microsecond_Delay_Init(void)
@@ -396,25 +436,33 @@ static uint32_t Encoder_Absolute_Count(TIM_HandleTypeDef *timer)
 
 static uint32_t Encoder_Left_Count(void)
 {
-  return Encoder_Absolute_Count(&htim4);
+  uint32_t front = Encoder_Absolute_Count(&htim4);
+  uint32_t rear = Encoder_Absolute_Count(&htim8);
+  return (front + rear) / 2U;
 }
 
 static uint32_t Encoder_Right_Count(void)
 {
-  return Encoder_Absolute_Count(&htim3);
+  uint32_t front = Encoder_Absolute_Count(&htim3);
+  uint32_t rear = Encoder_Absolute_Count(&htim2);
+  return (front + rear) / 2U;
 }
 
 static uint32_t Encoder_Travel_Count(void)
 {
-  uint32_t left = Encoder_Left_Count();
-  uint32_t right = Encoder_Right_Count();
-  return (left + right) / 2U;
+  uint32_t left_front = Encoder_Absolute_Count(&htim4);
+  uint32_t right_front = Encoder_Absolute_Count(&htim3);
+  uint32_t left_rear = Encoder_Absolute_Count(&htim8);
+  uint32_t right_rear = Encoder_Absolute_Count(&htim2);
+  return (left_front + right_front + left_rear + right_rear) / 4U;
 }
 
 static void Encoder_Reset_Distance(void)
 {
+  __HAL_TIM_SET_COUNTER(&htim2, 0U);
   __HAL_TIM_SET_COUNTER(&htim3, 0U);
   __HAL_TIM_SET_COUNTER(&htim4, 0U);
+  __HAL_TIM_SET_COUNTER(&htim8, 0U);
 }
 
 static void Parking_Set_State(CarState next_state, uint32_t now)
