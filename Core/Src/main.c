@@ -1,6 +1,8 @@
 #include "main.h"
 #include "menu.h"
 #include "menu_display.h"
+#include <stdio.h>
+#include <string.h>
 
 /* CD4051 gray sensor: AD0...AD2 select one channel, OUT returns its level. */
 #define SENSOR_PORT GPIOB
@@ -61,6 +63,10 @@
 #define REVERSE_PARK_SYNC_KP 1
 #define REVERSE_PARK_MAX_CORRECTION 45
 
+/* T4 UART motor and encoder test: 115200 bps. */
+#define DIAGNOSTIC_SPEED 120
+#define DIAGNOSTIC_REPORT_MS 200U
+
 typedef enum {
   CAR_STOPPED,
   CAR_FOLLOWING,
@@ -72,13 +78,15 @@ typedef enum {
   CAR_PARK_REVERSE_STRAIGHTEN,
   CAR_PARK_FINAL_ADJUST,
   CAR_REVERSE_PARK_APPROACH,
-  CAR_REVERSE_PARK_BACK_IN
+  CAR_REVERSE_PARK_BACK_IN,
+  CAR_DIAGNOSTIC
 } CarState;
 
 typedef enum {
   TASK_NORMAL_LINE,
   TASK_SIDE_PARKING,
-  TASK_REVERSE_PARKING
+  TASK_REVERSE_PARKING,
+  TASK_DIAGNOSTIC
 } TaskMode;
 
 typedef enum {
@@ -98,6 +106,7 @@ static TIM_HandleTypeDef htim2;
 static TIM_HandleTypeDef htim3;
 static TIM_HandleTypeDef htim4;
 static TIM_HandleTypeDef htim8;
+static UART_HandleTypeDef huart1;
 static CarState car_state = CAR_STOPPED;
 static TaskMode task_mode = TASK_NORMAL_LINE;
 static CornerDirection turn_direction = CORNER_NONE;
@@ -112,9 +121,11 @@ static uint8_t menu_led_toggles_remaining = 0U;
 static uint8_t menu_led_is_on = 0U;
 static uint32_t menu_led_tick = 0U;
 static uint8_t ignore_stop_key_event = 0U;
+static uint32_t diagnostic_report_tick = 0U;
 
 static void Car_Stop(void);
 static void Status_LED(uint8_t on);
+static void Diagnostic_Send(const char *text);
 
 static uint8_t Key_Is_Pressed(void)
 {
@@ -277,6 +288,14 @@ static void GPIO_Init_All(void)
   gpio.Pull = GPIO_PULLUP;
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &gpio);
+
+  /* ST-Link virtual COM port: PA9=USART1_TX, PA10=USART1_RX. */
+  gpio.Pin = GPIO_PIN_9 | GPIO_PIN_10;
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF7_USART1;
+  HAL_GPIO_Init(GPIOA, &gpio);
 }
 
 static void PWM_Init_All(void)
@@ -363,6 +382,20 @@ static void Encoder_Init_All(void)
   if (HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL) != HAL_OK) Error_Stop();
 }
 
+static void UART1_Init(void)
+{
+  __HAL_RCC_USART1_CLK_ENABLE();
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200U;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK) Error_Stop();
+}
+
 static void Microsecond_Delay_Init(void)
 {
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -426,6 +459,22 @@ static void Motor_Set_Left_Right(int16_t left_speed, int16_t right_speed)
 static void Motor_Stop_All(void)
 {
   Motor_Set_Left_Right(0, 0);
+}
+
+static void Motor_Set_Test_One(uint8_t motor, int16_t speed)
+{
+  Motor_Stop_All();
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
+
+  if (motor == 1U) {
+    Motor_Set_One(GPIO_PIN_0, GPIO_PIN_1, TIM_CHANNEL_1, speed); /* Left front */
+  } else if (motor == 2U) {
+    Motor_Set_One(GPIO_PIN_2, GPIO_PIN_3, TIM_CHANNEL_2, speed); /* Right front */
+  } else if (motor == 3U) {
+    Motor_Set_One(GPIO_PIN_4, GPIO_PIN_5, TIM_CHANNEL_3, speed); /* Left rear */
+  } else if (motor == 4U) {
+    Motor_Set_One(GPIO_PIN_6, GPIO_PIN_7, TIM_CHANNEL_4, speed); /* Right rear */
+  }
 }
 
 static uint32_t Encoder_Absolute_Count(TIM_HandleTypeDef *timer)
@@ -607,6 +656,10 @@ static void Car_Start(TaskMode mode)
     Parking_Set_State(CAR_PARK_STRAIGHT_AHEAD, HAL_GetTick());
   } else if (task_mode == TASK_REVERSE_PARKING) {
     Parking_Set_State(CAR_REVERSE_PARK_APPROACH, HAL_GetTick());
+  } else if (task_mode == TASK_DIAGNOSTIC) {
+    car_state = CAR_DIAGNOSTIC;
+    diagnostic_report_tick = HAL_GetTick();
+    Diagnostic_Send("T4 READY. Type h for commands. Wheels start stopped.\\r\\n");
   } else {
     car_state = CAR_FOLLOWING;
   }
@@ -616,6 +669,8 @@ static void Car_Start(TaskMode mode)
     MenuDisplay_Show_Running(MENU_TASK_2_SIDE_PARKING);
   } else if (task_mode == TASK_REVERSE_PARKING) {
     MenuDisplay_Show_Running(MENU_TASK_3_REVERSE_PARKING);
+  } else if (task_mode == TASK_DIAGNOSTIC) {
+    MenuDisplay_Show_Running(MENU_TASK_4_ENCODER_TEST);
   } else {
     MenuDisplay_Show_Running(MENU_TASK_1_SQUARE_LINE);
   }
@@ -791,8 +846,66 @@ static void Process_Reverse_Parking(uint32_t now)
   }
 }
 
+static void Diagnostic_Send(const char *text)
+{
+  (void)HAL_UART_Transmit(&huart1, (uint8_t *)text,
+                          (uint16_t)strlen(text), 20U);
+}
+
+static void Diagnostic_Report(void)
+{
+  char text[96];
+  uint32_t left_front = Encoder_Absolute_Count(&htim4);
+  uint32_t right_front = Encoder_Absolute_Count(&htim3);
+  uint32_t left_rear = Encoder_Absolute_Count(&htim8);
+  uint32_t right_rear = Encoder_Absolute_Count(&htim2);
+
+  (void)snprintf(text, sizeof(text), "ENC LF=%lu RF=%lu LR=%lu RR=%lu AVG=%lu\\r\\n",
+                 (unsigned long)left_front, (unsigned long)right_front,
+                 (unsigned long)left_rear, (unsigned long)right_rear,
+                 (unsigned long)Encoder_Travel_Count());
+  Diagnostic_Send(text);
+}
+
+static void Diagnostic_Handle_Command(uint8_t command)
+{
+  if (command == '1') Motor_Set_Test_One(1U, DIAGNOSTIC_SPEED);
+  else if (command == '2') Motor_Set_Test_One(2U, DIAGNOSTIC_SPEED);
+  else if (command == '3') Motor_Set_Test_One(3U, DIAGNOSTIC_SPEED);
+  else if (command == '4') Motor_Set_Test_One(4U, DIAGNOSTIC_SPEED);
+  else if (command == 'f') Motor_Set_Left_Right(DIAGNOSTIC_SPEED, DIAGNOSTIC_SPEED);
+  else if (command == 'b') Motor_Set_Left_Right(-DIAGNOSTIC_SPEED, -DIAGNOSTIC_SPEED);
+  else if (command == 's') Motor_Stop_All();
+  else if (command == 'r') Encoder_Reset_Distance();
+  else if (command == 'p') Diagnostic_Report();
+  else if (command == 'h') {
+    Diagnostic_Send("CMD 1-4=one wheel f=forward b=back s=stop r=reset p=print q=exit\\r\\n");
+  } else if (command == 'q') {
+    Car_Stop();
+  }
+}
+
+static void Process_Diagnostic(uint32_t now)
+{
+  uint8_t command;
+
+  if (HAL_UART_Receive(&huart1, &command, 1U, 0U) == HAL_OK) {
+    Diagnostic_Handle_Command(command);
+  }
+
+  if (now - diagnostic_report_tick >= DIAGNOSTIC_REPORT_MS) {
+    diagnostic_report_tick = now;
+    Diagnostic_Report();
+  }
+}
+
 static void Car_Process(uint32_t now)
 {
+  if (task_mode == TASK_DIAGNOSTIC) {
+    Process_Diagnostic(now);
+    return;
+  }
+
   uint8_t sensor = Sensor_Read();
 
   if (car_state == CAR_FOLLOWING) Follow_Line(sensor, now);
@@ -846,6 +959,7 @@ int main(void)
   GPIO_Init_All();
   PWM_Init_All();
   Encoder_Init_All();
+  UART1_Init();
   Car_Stop();
   Menu_Init();
   MenuDisplay_Init();
@@ -878,6 +992,8 @@ int main(void)
           Car_Start(TASK_SIDE_PARKING);
         } else if (Menu_GetSelectedTask() == MENU_TASK_3_REVERSE_PARKING) {
           Car_Start(TASK_REVERSE_PARKING);
+        } else if (Menu_GetSelectedTask() == MENU_TASK_4_ENCODER_TEST) {
+          Car_Start(TASK_DIAGNOSTIC);
         } else {
           /* Reserved tasks do not move the car until their code exists. */
           Menu_Indicate_Task(Menu_GetSelectedTask(), now);

@@ -44,5 +44,6 @@ uint8_t Menu_Task_Is_Ready(MenuTaskId task)
 {
   return (task == MENU_TASK_1_SQUARE_LINE ||
           task == MENU_TASK_2_SIDE_PARKING ||
-          task == MENU_TASK_3_REVERSE_PARKING) ? 1U : 0U;
+          task == MENU_TASK_3_REVERSE_PARKING ||
+          task == MENU_TASK_4_ENCODER_TEST) ? 1U : 0U;
 }
