@@ -51,9 +51,11 @@
 #define PARK_ENCODER_STALL_MS 300U
 #define PARK_STEP_TIMEOUT_MS 5000U
 
-/* Task 3: reverse straight into the BC garage after reaching its pre-stop point. */
+/* Task 3: a pure encoder-based reverse-parking demonstration.
+ * It does not use vision or the gray sensor: drive forward first, then reverse.
+ */
 #define REVERSE_PARK_APPROACH_SPEED 160
-#define REVERSE_PARK_APPROACH_COUNTS 0U
+#define REVERSE_PARK_APPROACH_COUNTS 220U
 #define REVERSE_PARK_BACK_IN_SPEED 140
 #define REVERSE_PARK_BACK_IN_COUNTS 500U
 #define REVERSE_PARK_SYNC_KP 1
@@ -708,32 +710,12 @@ static void Process_Side_Parking(uint8_t sensor, uint32_t now)
   }
 }
 
-/* Follow only the BC straight edge; corner detection is intentionally disabled. */
-static void Reverse_Park_Approach(uint8_t sensor)
-{
-  int16_t correction;
-
-  if (sensor == 0U || Is_Ambiguous_Black_Area(sensor)) {
-    Car_Stop();
-    return;
-  }
-
-  correction = (int16_t)(Sensor_Error(sensor) * FOLLOW_KP);
-  if (correction > FOLLOW_MAX_CORRECTION) correction = FOLLOW_MAX_CORRECTION;
-  if (correction < -FOLLOW_MAX_CORRECTION) correction = -FOLLOW_MAX_CORRECTION;
-  Motor_Set_Left_Right((int16_t)(REVERSE_PARK_APPROACH_SPEED + correction),
-                       (int16_t)(REVERSE_PARK_APPROACH_SPEED - correction));
-}
-
-static void Process_Reverse_Parking(uint8_t sensor, uint32_t now)
+static void Process_Reverse_Parking(uint32_t now)
 {
   if (car_state == CAR_REVERSE_PARK_APPROACH) {
-    if (REVERSE_PARK_APPROACH_COUNTS == 0U) {
-      Parking_Set_State(CAR_REVERSE_PARK_BACK_IN, now);
-      return;
-    }
-    Reverse_Park_Approach(sensor);
-    if (car_state != CAR_REVERSE_PARK_APPROACH) return;
+    /* Simulation phase: straight approach, controlled only by encoders. */
+    Motor_Set_Left_Right(REVERSE_PARK_APPROACH_SPEED,
+                         REVERSE_PARK_APPROACH_SPEED);
     (void)Parking_Target_Reached(REVERSE_PARK_APPROACH_COUNTS,
                                  CAR_REVERSE_PARK_BACK_IN, now);
     return;
@@ -770,7 +752,7 @@ static void Car_Process(uint32_t now)
            car_state == CAR_TURNING ||
            car_state == CAR_RECOVERING) Process_Corner(sensor, now);
   else if (task_mode == TASK_SIDE_PARKING) Process_Side_Parking(sensor, now);
-  else if (task_mode == TASK_REVERSE_PARKING) Process_Reverse_Parking(sensor, now);
+  else if (task_mode == TASK_REVERSE_PARKING) Process_Reverse_Parking(now);
 }
 
 static KeyEvent Key_Read_Event(void)
