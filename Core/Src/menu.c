@@ -16,6 +16,11 @@ void Menu_Init(void)
   selected_task = MENU_TASK_1_SQUARE_LINE;
 }
 
+void Menu_Select_First(void)
+{
+  selected_task = MENU_TASK_1_SQUARE_LINE;
+}
+
 void Menu_Select_Next(void)
 {
   if (selected_task >= MENU_TASK_6_RESERVED) {
@@ -38,5 +43,6 @@ const char *Menu_GetSelectedLabel(void)
 uint8_t Menu_Task_Is_Ready(MenuTaskId task)
 {
   return (task == MENU_TASK_1_SQUARE_LINE ||
-          task == MENU_TASK_2_SIDE_PARKING) ? 1U : 0U;
+          task == MENU_TASK_2_SIDE_PARKING ||
+          task == MENU_TASK_3_REVERSE_PARKING) ? 1U : 0U;
 }

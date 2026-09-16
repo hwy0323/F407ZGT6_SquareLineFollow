@@ -141,6 +141,39 @@ void OLED_Draw_String(uint8_t row, uint8_t column, const char *text)
   }
 }
 
+static void OLED_Draw_Pixel(uint8_t x, uint8_t y)
+{
+  if (x < OLED_WIDTH && y < OLED_PAGES * 8U) {
+    oled_buffer[(uint16_t)(y / 8U) * OLED_WIDTH + x] |=
+        (uint8_t)(1U << (y % 8U));
+  }
+}
+
+void OLED_Draw_Big_String(uint8_t x, uint8_t y, uint8_t scale, const char *text)
+{
+  while (*text != '\0') {
+    const uint8_t *glyph = OLED_Get_Glyph(*text++);
+    uint8_t glyph_column;
+
+    for (glyph_column = 0U; glyph_column < 5U; glyph_column++) {
+      uint8_t glyph_row;
+      for (glyph_row = 0U; glyph_row < 7U; glyph_row++) {
+        if ((glyph[glyph_column] & (1U << glyph_row)) != 0U) {
+          uint8_t dx;
+          uint8_t dy;
+          for (dx = 0U; dx < scale; dx++) {
+            for (dy = 0U; dy < scale; dy++) {
+              OLED_Draw_Pixel((uint8_t)(x + glyph_column * scale + dx),
+                              (uint8_t)(y + glyph_row * scale + dy));
+            }
+          }
+        }
+      }
+    }
+    x = (uint8_t)(x + 6U * scale);
+  }
+}
+
 void OLED_Refresh(void)
 {
   uint8_t page;

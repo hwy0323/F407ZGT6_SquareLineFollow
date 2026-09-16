@@ -51,6 +51,14 @@
 #define PARK_ENCODER_STALL_MS 300U
 #define PARK_STEP_TIMEOUT_MS 5000U
 
+/* Task 3: reverse straight into the BC garage after reaching its pre-stop point. */
+#define REVERSE_PARK_APPROACH_SPEED 160
+#define REVERSE_PARK_APPROACH_COUNTS 0U
+#define REVERSE_PARK_BACK_IN_SPEED 140
+#define REVERSE_PARK_BACK_IN_COUNTS 500U
+#define REVERSE_PARK_SYNC_KP 1
+#define REVERSE_PARK_MAX_CORRECTION 45
+
 typedef enum {
   CAR_STOPPED,
   CAR_FOLLOWING,
@@ -60,12 +68,15 @@ typedef enum {
   CAR_PARK_STRAIGHT_AHEAD,
   CAR_PARK_REVERSE_TURN_IN,
   CAR_PARK_REVERSE_STRAIGHTEN,
-  CAR_PARK_FINAL_ADJUST
+  CAR_PARK_FINAL_ADJUST,
+  CAR_REVERSE_PARK_APPROACH,
+  CAR_REVERSE_PARK_BACK_IN
 } CarState;
 
 typedef enum {
   TASK_NORMAL_LINE,
-  TASK_SIDE_PARKING
+  TASK_SIDE_PARKING,
+  TASK_REVERSE_PARKING
 } TaskMode;
 
 typedef enum {
@@ -381,10 +392,20 @@ static uint32_t Encoder_Absolute_Count(TIM_HandleTypeDef *timer)
   return (count < 0) ? (uint32_t)(-count) : (uint32_t)count;
 }
 
+static uint32_t Encoder_Left_Count(void)
+{
+  return Encoder_Absolute_Count(&htim4);
+}
+
+static uint32_t Encoder_Right_Count(void)
+{
+  return Encoder_Absolute_Count(&htim3);
+}
+
 static uint32_t Encoder_Travel_Count(void)
 {
-  uint32_t left = Encoder_Absolute_Count(&htim4);
-  uint32_t right = Encoder_Absolute_Count(&htim3);
+  uint32_t left = Encoder_Left_Count();
+  uint32_t right = Encoder_Right_Count();
   return (left + right) / 2U;
 }
 
@@ -519,6 +540,7 @@ static void Car_Stop(void)
   corner_hits = 0U;
   center_hits = 0U;
   Status_LED(0U);
+  Menu_Select_First();
   MenuDisplay_Show_Stopped(Menu_GetSelectedTask());
 }
 
@@ -533,6 +555,8 @@ static void Car_Start(TaskMode mode)
   Encoder_Reset_Distance();
   if (task_mode == TASK_SIDE_PARKING) {
     Parking_Set_State(CAR_PARK_STRAIGHT_AHEAD, HAL_GetTick());
+  } else if (task_mode == TASK_REVERSE_PARKING) {
+    Parking_Set_State(CAR_REVERSE_PARK_APPROACH, HAL_GetTick());
   } else {
     car_state = CAR_FOLLOWING;
   }
@@ -540,6 +564,8 @@ static void Car_Start(TaskMode mode)
   Status_LED(1U);
   if (task_mode == TASK_SIDE_PARKING) {
     MenuDisplay_Show_Running(MENU_TASK_2_SIDE_PARKING);
+  } else if (task_mode == TASK_REVERSE_PARKING) {
+    MenuDisplay_Show_Running(MENU_TASK_3_REVERSE_PARKING);
   } else {
     MenuDisplay_Show_Running(MENU_TASK_1_SQUARE_LINE);
   }
@@ -677,9 +703,60 @@ static void Process_Side_Parking(uint8_t sensor, uint32_t now)
   if (car_state == CAR_PARK_FINAL_ADJUST) {
     Motor_Set_Left_Right(PARK_DRIVE_SPEED, PARK_DRIVE_SPEED);
     if (Parking_Target_Reached(PARK_FINAL_ADJUST_COUNTS, CAR_STOPPED, now)) {
-      Motor_Stop_All();
-      car_state = CAR_STOPPED;
-      Status_LED(0U);
+      Car_Stop();
+    }
+  }
+}
+
+/* Follow only the BC straight edge; corner detection is intentionally disabled. */
+static void Reverse_Park_Approach(uint8_t sensor)
+{
+  int16_t correction;
+
+  if (sensor == 0U || Is_Ambiguous_Black_Area(sensor)) {
+    Car_Stop();
+    return;
+  }
+
+  correction = (int16_t)(Sensor_Error(sensor) * FOLLOW_KP);
+  if (correction > FOLLOW_MAX_CORRECTION) correction = FOLLOW_MAX_CORRECTION;
+  if (correction < -FOLLOW_MAX_CORRECTION) correction = -FOLLOW_MAX_CORRECTION;
+  Motor_Set_Left_Right((int16_t)(REVERSE_PARK_APPROACH_SPEED + correction),
+                       (int16_t)(REVERSE_PARK_APPROACH_SPEED - correction));
+}
+
+static void Process_Reverse_Parking(uint8_t sensor, uint32_t now)
+{
+  if (car_state == CAR_REVERSE_PARK_APPROACH) {
+    if (REVERSE_PARK_APPROACH_COUNTS == 0U) {
+      Parking_Set_State(CAR_REVERSE_PARK_BACK_IN, now);
+      return;
+    }
+    Reverse_Park_Approach(sensor);
+    if (car_state != CAR_REVERSE_PARK_APPROACH) return;
+    (void)Parking_Target_Reached(REVERSE_PARK_APPROACH_COUNTS,
+                                 CAR_REVERSE_PARK_BACK_IN, now);
+    return;
+  }
+
+  if (car_state == CAR_REVERSE_PARK_BACK_IN) {
+    int32_t sync_error = (int32_t)Encoder_Left_Count() -
+                         (int32_t)Encoder_Right_Count();
+    int16_t correction = (int16_t)(sync_error * REVERSE_PARK_SYNC_KP);
+
+    if (correction > REVERSE_PARK_MAX_CORRECTION) {
+      correction = REVERSE_PARK_MAX_CORRECTION;
+    }
+    if (correction < -REVERSE_PARK_MAX_CORRECTION) {
+      correction = -REVERSE_PARK_MAX_CORRECTION;
+    }
+
+    /* A wheel that has travelled farther receives less reverse PWM. */
+    Motor_Set_Left_Right((int16_t)(-REVERSE_PARK_BACK_IN_SPEED + correction),
+                         (int16_t)(-REVERSE_PARK_BACK_IN_SPEED - correction));
+
+    if (Parking_Target_Reached(REVERSE_PARK_BACK_IN_COUNTS, CAR_STOPPED, now)) {
+      Car_Stop();
     }
   }
 }
@@ -692,7 +769,8 @@ static void Car_Process(uint32_t now)
   else if (car_state == CAR_ENTERING_CORNER ||
            car_state == CAR_TURNING ||
            car_state == CAR_RECOVERING) Process_Corner(sensor, now);
-  else Process_Side_Parking(sensor, now);
+  else if (task_mode == TASK_SIDE_PARKING) Process_Side_Parking(sensor, now);
+  else if (task_mode == TASK_REVERSE_PARKING) Process_Reverse_Parking(sensor, now);
 }
 
 static KeyEvent Key_Read_Event(void)
@@ -768,6 +846,8 @@ int main(void)
           Car_Start(TASK_NORMAL_LINE);
         } else if (Menu_GetSelectedTask() == MENU_TASK_2_SIDE_PARKING) {
           Car_Start(TASK_SIDE_PARKING);
+        } else if (Menu_GetSelectedTask() == MENU_TASK_3_REVERSE_PARKING) {
+          Car_Start(TASK_REVERSE_PARKING);
         } else {
           /* Reserved tasks do not move the car until their code exists. */
           Menu_Indicate_Task(Menu_GetSelectedTask(), now);

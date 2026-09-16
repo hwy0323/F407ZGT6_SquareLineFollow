@@ -13,13 +13,14 @@
 typedef enum {
   MENU_TASK_1_SQUARE_LINE = 1U,
   MENU_TASK_2_SIDE_PARKING,
-  MENU_TASK_3_RESERVED,
+  MENU_TASK_3_REVERSE_PARKING,
   MENU_TASK_4_RESERVED,
   MENU_TASK_5_RESERVED,
   MENU_TASK_6_RESERVED
 } MenuTaskId;
 
 void Menu_Init(void);
+void Menu_Select_First(void);
 void Menu_Select_Next(void);
 MenuTaskId Menu_GetSelectedTask(void);
 const char *Menu_GetSelectedLabel(void);

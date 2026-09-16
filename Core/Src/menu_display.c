@@ -1,19 +1,15 @@
 #include "menu_display.h"
 #include "oled.h"
 
-static const char * const menu_lines[] = {
-  "SQUARE LINE",
-  "SIDE PARK DEMO",
-  "RESERVED 3",
-  "RESERVED 4",
-  "RESERVED 5",
-  "RESERVED 6"
+static const char * const task_codes[] = {
+  "T1", "T2", "T3", "T4", "T5", "T6"
 };
 
-static void Draw_Task_Line(uint8_t row, MenuTaskId task, uint8_t selected)
+static void Show_Full_Screen_Text(const char *text, uint8_t scale, uint8_t x)
 {
-  OLED_Draw_String(row, 0U, selected ? ">" : " ");
-  OLED_Draw_String(row, 2U, menu_lines[(uint32_t)task - 1U]);
+  OLED_Clear();
+  OLED_Draw_Big_String(x, 18U, scale, text);
+  OLED_Refresh();
 }
 
 void MenuDisplay_Init(void)
@@ -23,29 +19,15 @@ void MenuDisplay_Init(void)
 
 void MenuDisplay_Show_Browse(MenuTaskId selected_task)
 {
-  uint8_t row;
-
   if (!OLED_Is_Ready()) return;
-  OLED_Clear();
-  OLED_Draw_String(0U, 0U, "MENU  TASK");
-  OLED_Draw_String(0U, 11U, Menu_GetSelectedLabel());
-  for (row = 0U; row < 6U; row++) {
-    MenuTaskId task = (MenuTaskId)(row + 1U);
-    Draw_Task_Line((uint8_t)(row + 1U), task, task == selected_task);
-  }
-  OLED_Draw_String(7U, 0U, "HOLD 3S GO");
-  OLED_Refresh();
+  Show_Full_Screen_Text(task_codes[(uint32_t)selected_task - 1U], 6U, 28U);
 }
 
 void MenuDisplay_Show_Running(MenuTaskId task)
 {
+  (void)task;
   if (!OLED_Is_Ready()) return;
-  OLED_Clear();
-  OLED_Draw_String(1U, 0U, "RUNNING TASK");
-  OLED_Draw_String(1U, 14U, Menu_GetSelectedLabel());
-  OLED_Draw_String(3U, 0U, menu_lines[(uint32_t)task - 1U]);
-  OLED_Draw_String(6U, 0U, "PRESS KEY STOP");
-  OLED_Refresh();
+  Show_Full_Screen_Text("START", 4U, 4U);
 }
 
 void MenuDisplay_Show_Stopped(MenuTaskId task)
