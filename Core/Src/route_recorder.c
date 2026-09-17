@@ -170,6 +170,11 @@ void RouteRecorder_Init(void)
   Start_Blink(FIXED_RECORD_SLOT, HAL_GetTick(), CONFIRM_BLINK_MS);
 }
 
+uint8_t RouteRecorder_Is_Armed(void)
+{
+  return (recorder_state == RECORDER_ARMED) ? 1U : 0U;
+}
+
 void RouteRecorder_Handle_Short_Press(uint32_t now,
                                       int32_t left_front,
                                       int32_t left_rear,

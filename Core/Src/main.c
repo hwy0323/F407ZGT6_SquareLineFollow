@@ -1005,6 +1005,9 @@ int main(void)
     KeyEvent key_event = Key_Read_Event();
 #if ROUTE_RECORDER_ON_KEY
     if (key_event == KEY_EVENT_SHORT) {
+      if (RouteRecorder_Is_Armed()) {
+        Encoder_Reset_Distance();
+      }
       RouteRecorder_Handle_Short_Press(now,
                                        Encoder_Signed_Count(&htim4),
                                        Encoder_Signed_Count(&htim8),

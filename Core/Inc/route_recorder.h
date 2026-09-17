@@ -5,6 +5,8 @@
 
 /* Offline route teaching uses only short PA15 presses. */
 void RouteRecorder_Init(void);
+/* First short press starts a new record and must clear encoder counters first. */
+uint8_t RouteRecorder_Is_Armed(void);
 void RouteRecorder_Handle_Short_Press(uint32_t now,
                                       int32_t left_front,
                                       int32_t left_rear,
