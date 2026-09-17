@@ -10,8 +10,8 @@
 #define ROUTE_SLOT_COUNT 3U
 #define ROUTE_MAX_POINTS 11U
 
-/* This firmware records only the BC reverse-parking route. */
-#define FIXED_RECORD_SLOT 2U
+/* This firmware records only the DA side-parking route. */
+#define FIXED_RECORD_SLOT 3U
 
 #define SELECT_FINISH_MS 1500U
 #define CONFIRM_BLINK_MS 180U
