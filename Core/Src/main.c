@@ -1,6 +1,7 @@
 #include "main.h"
 #include "menu.h"
 #include "menu_display.h"
+#include "route_recorder.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -69,7 +70,8 @@
 #define DIAGNOSTIC_AUTO_START 0U
 
 /* Bench demo: a short PA15 press starts the encoder-only side parking motion. */
-#define SIDE_PARKING_DEMO_ON_KEY 1U
+#define SIDE_PARKING_DEMO_ON_KEY 0U
+#define ROUTE_RECORDER_ON_KEY 1U
 
 typedef enum {
   CAR_STOPPED,
@@ -485,6 +487,11 @@ static uint32_t Encoder_Absolute_Count(TIM_HandleTypeDef *timer)
 {
   int16_t count = (int16_t)__HAL_TIM_GET_COUNTER(timer);
   return (count < 0) ? (uint32_t)(-count) : (uint32_t)count;
+}
+
+static int32_t Encoder_Signed_Count(TIM_HandleTypeDef *timer)
+{
+  return (int32_t)(int16_t)__HAL_TIM_GET_COUNTER(timer);
 }
 
 static uint32_t Encoder_Left_Count(void)
@@ -972,12 +979,17 @@ int main(void)
   Car_Stop();
   Menu_Init();
   MenuDisplay_Init();
+#if ROUTE_RECORDER_ON_KEY
+  RouteRecorder_Init();
+  Status_LED(RouteRecorder_LED_Is_On());
+#else
 #if DIAGNOSTIC_AUTO_START
   /* Dedicated bench-test firmware: T4 starts automatically but motors stay stopped. */
   Car_Start(TASK_DIAGNOSTIC);
 #else
   Menu_Indicate_Task(Menu_GetSelectedTask(), HAL_GetTick());
   MenuDisplay_Show_Browse(Menu_GetSelectedTask());
+#endif
 #endif
 
   while (1) {
@@ -991,6 +1003,16 @@ int main(void)
     }
 
     KeyEvent key_event = Key_Read_Event();
+#if ROUTE_RECORDER_ON_KEY
+    if (key_event == KEY_EVENT_SHORT) {
+      RouteRecorder_Handle_Short_Press(now,
+                                       Encoder_Signed_Count(&htim4),
+                                       Encoder_Signed_Count(&htim8),
+                                       Encoder_Signed_Count(&htim2));
+    }
+    RouteRecorder_Process(now);
+    Status_LED(RouteRecorder_LED_Is_On());
+#else
     if (key_event != KEY_EVENT_NONE) {
       if (ignore_stop_key_event) {
         /* The release after an emergency stop must not change selection. */
@@ -1018,13 +1040,18 @@ int main(void)
         }
       }
     }
+#endif
 
+#if ROUTE_RECORDER_ON_KEY
+    Motor_Stop_All();
+#else
     if (car_state != CAR_STOPPED && now - control_tick >= CONTROL_PERIOD_MS) {
       control_tick = now;
       Car_Process(now);
     } else if (car_state == CAR_STOPPED) {
       Menu_Process_Indicator(now);
     }
+#endif
     HAL_Delay(1U);
   }
 }
