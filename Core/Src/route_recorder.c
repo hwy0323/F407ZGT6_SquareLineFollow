@@ -10,8 +10,8 @@
 #define ROUTE_SLOT_COUNT 3U
 #define ROUTE_MAX_POINTS 11U
 
-/* This firmware records one route only. Change this for the next teaching run. */
-#define FIXED_RECORD_SLOT 1U
+/* This firmware records only the BC reverse-parking route. */
+#define FIXED_RECORD_SLOT 2U
 
 #define SELECT_FINISH_MS 1500U
 #define CONFIRM_BLINK_MS 180U
