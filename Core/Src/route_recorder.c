@@ -10,6 +10,9 @@
 #define ROUTE_SLOT_COUNT 3U
 #define ROUTE_MAX_POINTS 11U
 
+/* This firmware records one route only. Change this for the next teaching run. */
+#define FIXED_RECORD_SLOT 1U
+
 #define SELECT_FINISH_MS 1500U
 #define CONFIRM_BLINK_MS 180U
 #define COMPLETE_BLINK_MS 120U
@@ -156,11 +159,15 @@ void RouteRecorder_Init(void)
 
   recorder_state = RECORDER_SELECT_ROUTE;
   selection_clicks = 0U;
-  selected_slot = 0U;
-  required_points = 0U;
+  selected_slot = FIXED_RECORD_SLOT;
+  required_points = Points_For_Slot(FIXED_RECORD_SLOT);
   recorded_points = 0U;
   led_is_on = 0U;
   blink_toggles = 0U;
+
+  /* No menu: after boot, the first short press records the start point. */
+  recorder_state = RECORDER_ARMED;
+  Start_Blink(FIXED_RECORD_SLOT, HAL_GetTick(), CONFIRM_BLINK_MS);
 }
 
 void RouteRecorder_Handle_Short_Press(uint32_t now,
@@ -207,16 +214,6 @@ void RouteRecorder_Process(uint32_t now)
     required_points = Points_For_Slot(selected_slot);
     recorder_state = RECORDER_ARMED;
     Start_Blink(selected_slot, now, CONFIRM_BLINK_MS);
-  }
-
-  if (recorder_state == RECORDER_COMPLETE &&
-      now - complete_tick >= COMPLETE_HOLD_MS) {
-    recorder_state = RECORDER_SELECT_ROUTE;
-    selection_clicks = 0U;
-    selected_slot = 0U;
-    required_points = 0U;
-    recorded_points = 0U;
-    led_is_on = 0U;
   }
 
   interval = (recorder_state == RECORDER_COMPLETE) ? COMPLETE_BLINK_MS : CONFIRM_BLINK_MS;
