@@ -63,6 +63,10 @@
 #define REVERSE_PARK_ALIGN_RIGHT_SPEED 165
 #define REVERSE_PARK_BACK_LEFT_SPEED 165
 #define REVERSE_PARK_BACK_RIGHT_SPEED 140
+/* Verified from yesterday's BC teaching record; used if Flash cannot be read. */
+#define REVERSE_PARK_FALLBACK_APPROACH_COUNTS 237U
+#define REVERSE_PARK_FALLBACK_ALIGN_COUNTS 2485U
+#define REVERSE_PARK_FALLBACK_BACK_IN_COUNTS 2699U
 
 /* T4 UART motor and encoder test: 115200 bps. */
 #define DIAGNOSTIC_SPEED 180
@@ -573,24 +577,26 @@ static uint32_t Recorded_Segment_Count(const RecordedRouteSlot *slot,
           Count_Difference(first->right_rear, last->right_rear)) / 3U;
 }
 
-static uint8_t Reverse_Parking_Load_Record(void)
+static void Reverse_Parking_Load_Record(void)
 {
   const RecordedRouteStore *store = (const RecordedRouteStore *)ROUTE_FLASH_ADDRESS;
   const RecordedRouteSlot *slot = &store->slot[1]; /* Slot 2: BC reverse parking. */
 
-  if (store->magic != ROUTE_STORE_MAGIC || store->version != 1U ||
-      slot->valid != ROUTE_SLOT_MAGIC || slot->point_count < 6U) {
-    return 0U;
+  if (store->magic == ROUTE_STORE_MAGIC && store->version == 1U &&
+      slot->valid == ROUTE_SLOT_MAGIC && slot->point_count >= 6U) {
+    /* P2->P3: BC approach; P3->P4: forward arc; P4->P5: reverse arc. */
+    reverse_park_approach_counts = Recorded_Segment_Count(slot, 2U, 3U);
+    reverse_park_align_counts = Recorded_Segment_Count(slot, 3U, 4U);
+    reverse_park_back_in_counts = Recorded_Segment_Count(slot, 4U, 5U);
   }
 
-  /* P2->P3: BC approach; P3->P4: forward arc; P4->P5: reverse arc. */
-  reverse_park_approach_counts = Recorded_Segment_Count(slot, 2U, 3U);
-  reverse_park_align_counts = Recorded_Segment_Count(slot, 3U, 4U);
-  reverse_park_back_in_counts = Recorded_Segment_Count(slot, 4U, 5U);
-
-  return (reverse_park_approach_counts != 0U &&
-          reverse_park_align_counts != 0U &&
-          reverse_park_back_in_counts != 0U) ? 1U : 0U;
+  /* Do not silently refuse to start when a recorded Flash word is invalid. */
+  if (reverse_park_approach_counts == 0U || reverse_park_align_counts == 0U ||
+      reverse_park_back_in_counts == 0U) {
+    reverse_park_approach_counts = REVERSE_PARK_FALLBACK_APPROACH_COUNTS;
+    reverse_park_align_counts = REVERSE_PARK_FALLBACK_ALIGN_COUNTS;
+    reverse_park_back_in_counts = REVERSE_PARK_FALLBACK_BACK_IN_COUNTS;
+  }
 }
 
 static void Parking_Set_State(CarState next_state, uint32_t now)
@@ -725,11 +731,7 @@ static void Car_Stop(void)
 
 static void Car_Start(TaskMode mode)
 {
-  if (mode == TASK_REVERSE_PARKING && !Reverse_Parking_Load_Record()) {
-    Motor_Stop_All();
-    Status_LED(0U);
-    return;
-  }
+  if (mode == TASK_REVERSE_PARKING) Reverse_Parking_Load_Record();
 
   task_mode = mode;
   turn_direction = CORNER_NONE;
