@@ -19,6 +19,7 @@
 #define SENSOR_CENTER_MASK 0x18U
 /* CH7 is physically the second probe from the right and is stuck active. */
 #define SENSOR_FAULTY_MASK (1U << 6)
+#define SENSOR_RIGHT_VALID_COUNT 3U
 
 /* TIM1 runs four PWM outputs at about 20 kHz. */
 #define MOTOR_PWM_PERIOD 8399U
@@ -699,7 +700,10 @@ static CornerDirection Detect_Corner(uint8_t sensor)
   uint8_t right_count = Sensor_Count(sensor & SENSOR_RIGHT_HALF_MASK);
 
   if (left_count == 4U && right_count <= 1U) return CORNER_LEFT;
-  if (right_count == 4U && left_count <= 1U) return CORNER_RIGHT;
+  /* CH7 is masked, so the right half has only three working probes. */
+  if (right_count == SENSOR_RIGHT_VALID_COUNT && left_count <= 1U) {
+    return CORNER_RIGHT;
+  }
   return CORNER_NONE;
 }
 
