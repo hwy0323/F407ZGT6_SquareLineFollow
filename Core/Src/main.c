@@ -17,6 +17,8 @@
 #define SENSOR_LEFT_HALF_MASK 0x0FU
 #define SENSOR_RIGHT_HALF_MASK 0xF0U
 #define SENSOR_CENTER_MASK 0x18U
+/* CH7 is physically the second probe from the right and is stuck active. */
+#define SENSOR_FAULTY_MASK (1U << 6)
 
 /* TIM1 runs four PWM outputs at about 20 kHz. */
 #define MOTOR_PWM_PERIOD 8399U
@@ -653,7 +655,8 @@ static uint8_t Sensor_Read(void)
       sensor |= (uint8_t)(1U << channel);
     }
   }
-  return sensor;
+  /* Keep the failed CH7 from affecting error, corner, and lost-line logic. */
+  return (uint8_t)(sensor & (uint8_t)~SENSOR_FAULTY_MASK);
 }
 
 static uint8_t Sensor_Count(uint8_t sensor)
