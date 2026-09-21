@@ -1196,71 +1196,163 @@ static KeyEvent Key_Read_Event(void)
   return KEY_EVENT_NONE;
 }
 
+/*
+ * MotorB/MotorC swap test record.  The MCU does not drive any motor in this
+ * build.  Two short key presses capture the four timer counters before and
+ * after each manually rotated wheel, then store both snapshots in sector 10.
+ */
+#define SWAP_RECORD_FLASH_ADDRESS 0x080C0000U
+#define SWAP_RECORD_MAGIC 0x53574150U
+#define SWAP_RECORD_VERSION 1U
+#define SWAP_RECORD_CHECK_XOR 0x3C6E91A7U
+
+typedef struct {
+  uint32_t magic;
+  uint32_t version;
+  int32_t b_tim2;
+  int32_t b_tim3;
+  int32_t b_tim4;
+  int32_t b_tim8;
+  int32_t c_tim2;
+  int32_t c_tim3;
+  int32_t c_tim4;
+  int32_t c_tim8;
+  uint32_t checksum;
+} SwapEncoderFlashRecord;
+
+static SwapEncoderFlashRecord swap_record;
+static uint8_t swap_record_stage = 0U;
+static uint8_t swap_record_flash_status = 0U;
+static uint8_t swap_led_toggles = 0U;
+static uint8_t swap_led_state = 0U;
+static uint32_t swap_led_tick = 0U;
+
+static uint32_t Swap_Record_Checksum(const SwapEncoderFlashRecord *record)
+{
+  const uint32_t *word = (const uint32_t *)record;
+  uint32_t checksum = SWAP_RECORD_CHECK_XOR;
+  uint32_t index;
+
+  for (index = 0U; index < (sizeof(*record) / sizeof(uint32_t)) - 1U; index++) {
+    checksum = (checksum << 5U) | (checksum >> 27U);
+    checksum ^= word[index];
+  }
+  return checksum;
+}
+
+static void Swap_Record_Snapshot(int32_t *tim2, int32_t *tim3,
+                                 int32_t *tim4, int32_t *tim8)
+{
+  *tim2 = Encoder_Signed_Count(&htim2);
+  *tim3 = Encoder_Signed_Count(&htim3);
+  *tim4 = Encoder_Signed_Count(&htim4);
+  *tim8 = Encoder_Signed_Count(&htim8);
+}
+
+static uint8_t Swap_Record_Save_Flash(void)
+{
+  FLASH_EraseInitTypeDef erase = {0};
+  HAL_StatusTypeDef status;
+  uint32_t sector_error = 0U;
+  uint32_t address = SWAP_RECORD_FLASH_ADDRESS;
+  uint32_t index;
+  const uint32_t *word = (const uint32_t *)&swap_record;
+
+  swap_record.magic = SWAP_RECORD_MAGIC;
+  swap_record.version = SWAP_RECORD_VERSION;
+  swap_record.checksum = Swap_Record_Checksum(&swap_record);
+
+  if (HAL_FLASH_Unlock() != HAL_OK) return 0U;
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR |
+                         FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
+                         FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+
+  erase.TypeErase = FLASH_TYPEERASE_SECTORS;
+  erase.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+  erase.Sector = FLASH_SECTOR_10;
+  erase.NbSectors = 1U;
+  status = HAL_FLASHEx_Erase(&erase, &sector_error);
+  for (index = 0U;
+       status == HAL_OK && index < sizeof(swap_record) / sizeof(uint32_t);
+       index++) {
+    status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, word[index]);
+    address += sizeof(uint32_t);
+  }
+  HAL_FLASH_Lock();
+
+  if (status != HAL_OK) return 0U;
+  return memcmp((const void *)SWAP_RECORD_FLASH_ADDRESS,
+                &swap_record, sizeof(swap_record)) == 0 ? 1U : 0U;
+}
+
+static void Swap_Record_LED_Process(uint32_t now)
+{
+  if (swap_record_flash_status == 1U) {
+    Status_LED(1U);
+    return;
+  }
+  if (swap_record_flash_status == 2U) {
+    if (now - swap_led_tick >= 120U) {
+      swap_led_tick = now;
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    }
+    return;
+  }
+
+  if (swap_led_toggles != 0U) {
+    if (now - swap_led_tick >= 160U) {
+      swap_led_tick = now;
+      swap_led_state = swap_led_state ? 0U : 1U;
+      Status_LED(swap_led_state);
+      swap_led_toggles--;
+      if (swap_led_toggles == 0U) Status_LED(0U);
+    }
+  } else if (now - swap_led_tick >= 500U) {
+    swap_led_tick = now;
+    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+  }
+}
+
 int main(void)
 {
-  uint32_t control_tick = 0U;
-
   HAL_Init();
   SystemClock_Config();
   Microsecond_Delay_Init();
   GPIO_Init_All();
-  PWM_Init_All();
   Encoder_Init_All();
-  UART1_Init();
-  Menu_Init();
-  MenuDisplay_Init();
-  Car_Stop();
-  Menu_Indicate_Task(Menu_GetSelectedTask(), HAL_GetTick());
-  MenuDisplay_Show_Browse(Menu_GetSelectedTask());
+  Encoder_Reset_Distance();
+  memset(&swap_record, 0, sizeof(swap_record));
+  swap_led_tick = HAL_GetTick();
+  /* PC0 remains low, so no motor output is enabled. */
 
   while (1) {
     uint32_t now = HAL_GetTick();
     KeyEvent key_event;
 
-    if (start_key_release_pending && !Key_Is_Pressed()) {
-      start_key_release_pending = 0U;
-    }
-
-    /* Pressing PA15 while moving always stops the car immediately. */
-    if (car_state != CAR_STOPPED && Key_Is_Pressed() &&
-        !start_key_release_pending) {
-      Car_Stop();
-      ignore_stop_key_event = 1U;
-      Menu_Indicate_Task(Menu_GetSelectedTask(), now);
-    }
-
     key_event = Key_Read_Event();
-    if (key_event != KEY_EVENT_NONE) {
-      if (ignore_stop_key_event) {
-        ignore_stop_key_event = 0U;
-      } else if (key_event == KEY_EVENT_SHORT) {
-        Menu_Select_Next();
-        Menu_Indicate_Task(Menu_GetSelectedTask(), now);
-        MenuDisplay_Show_Browse(Menu_GetSelectedTask());
-      } else if (Menu_GetSelectedTask() == MENU_TASK_1_SQUARE_LINE) {
-        Car_Start(TASK_NORMAL_LINE);
-        start_key_release_pending = 1U;
-      } else if (Menu_GetSelectedTask() == MENU_TASK_2_SIDE_PARKING) {
-        Car_Start(TASK_SIDE_PARKING);
-        start_key_release_pending = 1U;
-      } else if (Menu_GetSelectedTask() == MENU_TASK_3_REVERSE_PARKING) {
-        Car_Start(TASK_REVERSE_PARKING);
-        start_key_release_pending = 1U;
-      } else if (Menu_GetSelectedTask() == MENU_TASK_4_ENCODER_TEST) {
-        Car_Start(TASK_DIAGNOSTIC);
-        start_key_release_pending = 1U;
+    if (key_event == KEY_EVENT_SHORT && swap_record_stage < 2U) {
+      if (swap_record_stage == 0U) {
+        Swap_Record_Snapshot(&swap_record.b_tim2, &swap_record.b_tim3,
+                             &swap_record.b_tim4, &swap_record.b_tim8);
+        Encoder_Reset_Distance();
+        swap_record_stage = 1U;
+        swap_led_toggles = 4U;
+        swap_led_tick = now - 160U;
       } else {
-        Menu_Indicate_Task(Menu_GetSelectedTask(), now);
+        Swap_Record_Snapshot(&swap_record.c_tim2, &swap_record.c_tim3,
+                             &swap_record.c_tim4, &swap_record.c_tim8);
+        if (Swap_Record_Save_Flash()) {
+          swap_record_flash_status = 1U;
+          Status_LED(1U);
+        } else {
+          swap_record_flash_status = 2U;
+          swap_led_tick = now;
+        }
+        swap_record_stage = 2U;
       }
     }
-
-    if (car_state != CAR_STOPPED && now - control_tick >= CONTROL_PERIOD_MS) {
-      control_tick = now;
-      Car_Process(now);
-    } else if (car_state == CAR_STOPPED) {
-      Menu_Process_Indicator(now);
-    }
-    HAL_Delay(1U);
+    Swap_Record_LED_Process(now);
+    HAL_Delay(5U);
   }
 }
 
