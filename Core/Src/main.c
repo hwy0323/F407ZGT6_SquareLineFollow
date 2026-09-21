@@ -69,6 +69,9 @@
 #define PARK_STEP_TIMEOUT_MS 9000U
 #define SIDE_PARK_TURN_COUNT 3U
 #define REVERSE_PARK_TURN_COUNT 1U
+/* Fixed 1 m square navigation without reading the gray sensors. */
+#define ODOMETRY_ONLY 1U
+#define SQUARE_SIDE_COUNTS 5730U
 
 /* T4 UART motor and encoder test: 115200 bps. */
 #define DIAGNOSTIC_SPEED 180
@@ -86,6 +89,8 @@ typedef enum {
   CAR_ENTERING_CORNER,
   CAR_TURNING,
   CAR_RECOVERING,
+  CAR_ODOM_DRIVE,
+  CAR_ODOM_TURN,
   CAR_SIDE_LINE_APPROACH,
   CAR_SIDE_TURN_OUT,
   CAR_SIDE_MOVE_OUT,
@@ -146,6 +151,8 @@ static uint32_t menu_led_tick = 0U;
 static uint8_t ignore_stop_key_event = 0U;
 static uint8_t start_key_release_pending = 0U;
 static uint32_t diagnostic_report_tick = 0U;
+static uint8_t odom_turns_done = 0U;
+static uint8_t odom_target_turns = 0U;
 
 static void Car_Stop(void);
 static void Status_LED(uint8_t on);
@@ -767,6 +774,21 @@ static void Car_Start(TaskMode mode)
   center_hits = 0U;
   completed_turns = 0U;
   Encoder_Reset_Distance();
+#if ODOMETRY_ONLY
+  if (task_mode == TASK_NORMAL_LINE ||
+      task_mode == TASK_SIDE_PARKING ||
+      task_mode == TASK_REVERSE_PARKING) {
+    odom_turns_done = 0U;
+    if (task_mode == TASK_NORMAL_LINE) odom_target_turns = 4U;
+    else if (task_mode == TASK_SIDE_PARKING) odom_target_turns = 3U;
+    else odom_target_turns = 1U;
+    Parking_Set_State(CAR_ODOM_DRIVE, HAL_GetTick());
+  } else if (task_mode == TASK_DIAGNOSTIC) {
+    car_state = CAR_DIAGNOSTIC;
+    diagnostic_report_tick = HAL_GetTick();
+    Diagnostic_Send("T4 READY. Type h for commands. Wheels start stopped.\\r\\n");
+  }
+#else
   if (task_mode == TASK_SIDE_PARKING ||
       task_mode == TASK_REVERSE_PARKING) {
     /* Both parking tasks start at A and follow the verified square track. */
@@ -778,6 +800,7 @@ static void Car_Start(TaskMode mode)
   } else {
     car_state = CAR_FOLLOWING;
   }
+#endif
   menu_led_toggles_remaining = 0U;
   Status_LED(1U);
   if (task_mode == TASK_SIDE_PARKING) {
@@ -903,8 +926,13 @@ static void Parking_Follow_To_Exit(uint8_t sensor, CarState next_state,
 
 static void Process_Side_Parking(uint8_t sensor, uint32_t now)
 {
+  (void)sensor;
+
   if (car_state == CAR_SIDE_LINE_APPROACH) {
-    Parking_Follow_To_Exit(sensor, CAR_SIDE_TURN_OUT, now);
+    (void)Parking_Drive_Sides(PARK_STRAIGHT_SPEED, PARK_STRAIGHT_SPEED,
+                              PARK_LINE_APPROACH_COUNTS,
+                              PARK_LINE_APPROACH_COUNTS,
+                              CAR_SIDE_TURN_OUT, now);
     return;
   }
 
@@ -957,8 +985,13 @@ static void Process_Side_Parking(uint8_t sensor, uint32_t now)
 
 static void Process_Reverse_Parking(uint8_t sensor, uint32_t now)
 {
+  (void)sensor;
+
   if (car_state == CAR_REVERSE_LINE_APPROACH) {
-    Parking_Follow_To_Exit(sensor, CAR_REVERSE_TURN_OUT, now);
+    (void)Parking_Drive_Sides(PARK_STRAIGHT_SPEED, PARK_STRAIGHT_SPEED,
+                              PARK_LINE_APPROACH_COUNTS,
+                              PARK_LINE_APPROACH_COUNTS,
+                              CAR_REVERSE_TURN_OUT, now);
     return;
   }
 
@@ -1007,6 +1040,42 @@ static void Process_Reverse_Parking(uint8_t sensor, uint32_t now)
                               REVERSE_BACK_IN_COUNTS,
                               REVERSE_BACK_IN_COUNTS,
                               CAR_STOPPED, now);
+  }
+}
+
+/*
+ * Fixed-map navigation.  A starts at the upper-left corner and the car is
+ * placed facing B.  Every square side is 1 m, so each straight segment and
+ * every clockwise corner can be completed from encoder distance alone.
+ */
+static void Process_Odometry_Navigation(uint32_t now)
+{
+  if (car_state == CAR_ODOM_DRIVE) {
+    (void)Parking_Drive_Sides(PARK_STRAIGHT_SPEED, PARK_STRAIGHT_SPEED,
+                              SQUARE_SIDE_COUNTS, SQUARE_SIDE_COUNTS,
+                              CAR_ODOM_TURN, now);
+    return;
+  }
+
+  if (car_state == CAR_ODOM_TURN) {
+    uint8_t next_turn = (uint8_t)(odom_turns_done + 1U);
+    CarState next_state = CAR_ODOM_DRIVE;
+
+    if (next_turn >= odom_target_turns) {
+      if (task_mode == TASK_SIDE_PARKING) {
+        next_state = CAR_SIDE_LINE_APPROACH;
+      } else if (task_mode == TASK_REVERSE_PARKING) {
+        next_state = CAR_REVERSE_LINE_APPROACH;
+      } else {
+        next_state = CAR_STOPPED;
+      }
+    }
+
+    if (Parking_Drive_Sides(PARK_PIVOT_SPEED, -PARK_PIVOT_SPEED,
+                            PARK_TURN_90_COUNTS, PARK_TURN_90_COUNTS,
+                            next_state, now)) {
+      odom_turns_done = next_turn;
+    }
   }
 }
 
@@ -1074,6 +1143,15 @@ static void Car_Process(uint32_t now)
     return;
   }
 
+#if ODOMETRY_ONLY
+  if (car_state == CAR_ODOM_DRIVE || car_state == CAR_ODOM_TURN) {
+    Process_Odometry_Navigation(now);
+  } else if (task_mode == TASK_SIDE_PARKING) {
+    Process_Side_Parking(0U, now);
+  } else if (task_mode == TASK_REVERSE_PARKING) {
+    Process_Reverse_Parking(0U, now);
+  }
+#else
   uint8_t sensor = Sensor_Read();
 
   if (car_state == CAR_FOLLOWING) Follow_Line(sensor, now);
@@ -1082,6 +1160,7 @@ static void Car_Process(uint32_t now)
            car_state == CAR_RECOVERING) Process_Corner(sensor, now);
   else if (task_mode == TASK_SIDE_PARKING) Process_Side_Parking(sensor, now);
   else if (task_mode == TASK_REVERSE_PARKING) Process_Reverse_Parking(sensor, now);
+#endif
 }
 
 static KeyEvent Key_Read_Event(void)
