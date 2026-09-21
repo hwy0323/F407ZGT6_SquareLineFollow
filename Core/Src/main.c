@@ -2,6 +2,7 @@
 #include "menu.h"
 #include "menu_display.h"
 #include "route_recorder.h"
+#include "laser_test.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -120,6 +121,7 @@ static TIM_HandleTypeDef htim3;
 static TIM_HandleTypeDef htim4;
 static TIM_HandleTypeDef htim8;
 static UART_HandleTypeDef huart1;
+static I2C_HandleTypeDef hi2c3;
 static CarState car_state = CAR_STOPPED;
 static TaskMode task_mode = TASK_NORMAL_LINE;
 static CornerDirection turn_direction = CORNER_NONE;
@@ -330,6 +332,28 @@ static void GPIO_Init_All(void)
   gpio.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &gpio);
 
+  /* VL53L0X test module: PA8=I2C3_SCL, PC9=I2C3_SDA, PC8=XSH. */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
+  gpio.Pin = GPIO_PIN_8;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &gpio);
+
+  gpio.Pin = GPIO_PIN_8;
+  gpio.Mode = GPIO_MODE_AF_OD;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF4_I2C3;
+  HAL_GPIO_Init(GPIOA, &gpio);
+
+  gpio.Pin = GPIO_PIN_9;
+  gpio.Mode = GPIO_MODE_AF_OD;
+  gpio.Pull = GPIO_PULLUP;
+  gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+  gpio.Alternate = GPIO_AF4_I2C3;
+  HAL_GPIO_Init(GPIOC, &gpio);
+
   /* ST-Link virtual COM port: PA9=USART1_TX, PA10=USART1_RX. */
   gpio.Pin = GPIO_PIN_9 | GPIO_PIN_10;
   gpio.Mode = GPIO_MODE_AF_PP;
@@ -435,6 +459,21 @@ static void UART1_Init(void)
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart1) != HAL_OK) Error_Stop();
+}
+
+static void I2C3_Init(void)
+{
+  __HAL_RCC_I2C3_CLK_ENABLE();
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.ClockSpeed = 100000U;
+  hi2c3.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c3.Init.OwnAddress1 = 0U;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0U;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK) Error_Stop();
 }
 
 static void Microsecond_Delay_Init(void)
@@ -1057,101 +1096,27 @@ static KeyEvent Key_Read_Event(void)
 
 int main(void)
 {
-  uint32_t control_tick = 0U;
+  uint32_t led_tick = 0U;
 
   HAL_Init();
   SystemClock_Config();
   Microsecond_Delay_Init();
   GPIO_Init_All();
-  PWM_Init_All();
-  Encoder_Init_All();
-  UART1_Init();
-  Car_Stop();
-  Menu_Init();
-  MenuDisplay_Init();
-#if ROUTE_RECORDER_ON_KEY
-  RouteRecorder_Init();
-  Status_LED(RouteRecorder_LED_Is_On());
-#else
-#if DIAGNOSTIC_AUTO_START
-  /* Dedicated bench-test firmware: T4 starts automatically but motors stay stopped. */
-  Car_Start(TASK_DIAGNOSTIC);
-#else
-  Menu_Indicate_Task(Menu_GetSelectedTask(), HAL_GetTick());
-  MenuDisplay_Show_Browse(Menu_GetSelectedTask());
-#endif
-#endif
+  I2C3_Init();
+  /* PC0 remains low: the four TB6612 channels cannot drive the wheels. */
+  LaserTest_Init(&hi2c3);
 
   while (1) {
     uint32_t now = HAL_GetTick();
+    LaserTest_Process();
 
-    /* A running car stops as soon as PA15 is pressed. */
-    if (car_state != CAR_STOPPED && Key_Is_Pressed()) {
-      Car_Stop();
-      ignore_stop_key_event = 1U;
-      Menu_Indicate_Task(Menu_GetSelectedTask(), now);
+    /* LED: slow blink means running; solid on means a setup error. */
+    if (laser_status == 4U && now - led_tick >= 500U) {
+      led_tick = now;
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    } else if (laser_status != 4U) {
+      Status_LED(1U);
     }
-
-    KeyEvent key_event = Key_Read_Event();
-#if ROUTE_RECORDER_ON_KEY
-    if (key_event == KEY_EVENT_SHORT) {
-      if (RouteRecorder_Is_Armed()) {
-        Encoder_Reset_Distance();
-      }
-      RouteRecorder_Handle_Short_Press(now,
-                                       Encoder_Signed_Count(&htim4),
-                                       Encoder_Signed_Count(&htim8),
-                                       Encoder_Signed_Count(&htim2));
-    }
-    RouteRecorder_Process(now);
-    Status_LED(RouteRecorder_LED_Is_On());
-#else
-    if (key_event != KEY_EVENT_NONE) {
-      if (ignore_stop_key_event) {
-        /* The release after an emergency stop must not change selection. */
-        ignore_stop_key_event = 0U;
-#if SIDE_PARKING_DEMO_ON_KEY
-      } else if (key_event == KEY_EVENT_SHORT || key_event == KEY_EVENT_LONG) {
-        Car_Start(TASK_SIDE_PARKING);
-#endif
-      }
-#if REVERSE_PARK_DEMO_ON_KEY
-      else if (key_event == KEY_EVENT_SHORT) {
-        Car_Start(TASK_REVERSE_PARKING);
-      }
-#else
-      else {
-        if (key_event == KEY_EVENT_SHORT) {
-          Menu_Select_Next();
-          Menu_Indicate_Task(Menu_GetSelectedTask(), now);
-          MenuDisplay_Show_Browse(Menu_GetSelectedTask());
-        } else if (Menu_GetSelectedTask() == MENU_TASK_1_SQUARE_LINE) {
-          Car_Start(TASK_NORMAL_LINE);
-        } else if (Menu_GetSelectedTask() == MENU_TASK_2_SIDE_PARKING) {
-          Car_Start(TASK_SIDE_PARKING);
-        } else if (Menu_GetSelectedTask() == MENU_TASK_3_REVERSE_PARKING) {
-          Car_Start(TASK_REVERSE_PARKING);
-        } else if (Menu_GetSelectedTask() == MENU_TASK_4_ENCODER_TEST) {
-          Car_Start(TASK_DIAGNOSTIC);
-        } else {
-          /* Reserved tasks do not move the car until their code exists. */
-          Menu_Indicate_Task(Menu_GetSelectedTask(), now);
-        }
-      }
-#endif
-    }
-#endif
-
-#if ROUTE_RECORDER_ON_KEY
-    Motor_Stop_All();
-#else
-    if (car_state != CAR_STOPPED && now - control_tick >= CONTROL_PERIOD_MS) {
-      control_tick = now;
-      Car_Process(now);
-    } else if (car_state == CAR_STOPPED) {
-      Menu_Process_Indicator(now);
-    }
-#endif
     HAL_Delay(1U);
   }
 }
