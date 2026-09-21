@@ -4,3 +4,4 @@ Debug/*.elf
 Debug/*.bin
 Debug/*.map
 Debug/.gitkeep
+*_flash.bin
