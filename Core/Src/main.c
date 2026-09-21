@@ -1197,40 +1197,55 @@ static KeyEvent Key_Read_Event(void)
 }
 
 /*
- * MotorB/MotorC swap test record.  The MCU does not drive any motor in this
- * build.  Two short key presses capture the four timer counters before and
- * after each manually rotated wheel, then store both snapshots in sector 10.
+ * Four-wheel power-off encoder recorder.
+ *
+ * The MCU never enables STBY or PWM in this build.  A short press records one
+ * manually rotated wheel, in this fixed order: LF, RF, LR, RR.  Each record
+ * contains all four timer counters so a swapped connector is easy to find:
+ *   LF = TIM4 (PB6/PB7), RF = TIM3 (PA6/PA7),
+ *   LR = TIM8 (PC6/PC7), RR = TIM2 (PA0/PA1).
+ *
+ * Sector 10 is used for this test.  The older route records in sector 11 are
+ * not touched.  Read 76 bytes from 0x080C0000 after the fourth press.
  */
-#define SWAP_RECORD_FLASH_ADDRESS 0x080C0000U
-#define SWAP_RECORD_MAGIC 0x53574150U
-#define SWAP_RECORD_VERSION 1U
-#define SWAP_RECORD_CHECK_XOR 0x3C6E91A7U
+#define FOUR_RECORD_FLASH_ADDRESS 0x080C0000U
+#define FOUR_RECORD_MAGIC 0x34454E43U /* "CNE4" in little-endian memory */
+#define FOUR_RECORD_VERSION 1U
+#define FOUR_RECORD_CHECK_XOR 0x6A39D2B1U
 
 typedef struct {
   uint32_t magic;
   uint32_t version;
-  int32_t b_tim2;
-  int32_t b_tim3;
-  int32_t b_tim4;
-  int32_t b_tim8;
-  int32_t c_tim2;
-  int32_t c_tim3;
-  int32_t c_tim4;
-  int32_t c_tim8;
+  int32_t lf_tim2;
+  int32_t lf_tim3;
+  int32_t lf_tim4;
+  int32_t lf_tim8;
+  int32_t rf_tim2;
+  int32_t rf_tim3;
+  int32_t rf_tim4;
+  int32_t rf_tim8;
+  int32_t lr_tim2;
+  int32_t lr_tim3;
+  int32_t lr_tim4;
+  int32_t lr_tim8;
+  int32_t rr_tim2;
+  int32_t rr_tim3;
+  int32_t rr_tim4;
+  int32_t rr_tim8;
   uint32_t checksum;
-} SwapEncoderFlashRecord;
+} FourEncoderFlashRecord;
 
-static SwapEncoderFlashRecord swap_record;
-static uint8_t swap_record_stage = 0U;
-static uint8_t swap_record_flash_status = 0U;
-static uint8_t swap_led_toggles = 0U;
-static uint8_t swap_led_state = 0U;
-static uint32_t swap_led_tick = 0U;
+static FourEncoderFlashRecord four_record;
+static uint8_t four_record_stage = 0U;
+static uint8_t four_record_flash_status = 0U;
+static uint8_t four_led_toggles = 0U;
+static uint8_t four_led_state = 0U;
+static uint32_t four_led_tick = 0U;
 
-static uint32_t Swap_Record_Checksum(const SwapEncoderFlashRecord *record)
+static uint32_t Four_Record_Checksum(const FourEncoderFlashRecord *record)
 {
   const uint32_t *word = (const uint32_t *)record;
-  uint32_t checksum = SWAP_RECORD_CHECK_XOR;
+  uint32_t checksum = FOUR_RECORD_CHECK_XOR;
   uint32_t index;
 
   for (index = 0U; index < (sizeof(*record) / sizeof(uint32_t)) - 1U; index++) {
@@ -1240,7 +1255,7 @@ static uint32_t Swap_Record_Checksum(const SwapEncoderFlashRecord *record)
   return checksum;
 }
 
-static void Swap_Record_Snapshot(int32_t *tim2, int32_t *tim3,
+static void Four_Record_Snapshot(int32_t *tim2, int32_t *tim3,
                                  int32_t *tim4, int32_t *tim8)
 {
   *tim2 = Encoder_Signed_Count(&htim2);
@@ -1249,18 +1264,18 @@ static void Swap_Record_Snapshot(int32_t *tim2, int32_t *tim3,
   *tim8 = Encoder_Signed_Count(&htim8);
 }
 
-static uint8_t Swap_Record_Save_Flash(void)
+static uint8_t Four_Record_Save_Flash(void)
 {
   FLASH_EraseInitTypeDef erase = {0};
   HAL_StatusTypeDef status;
   uint32_t sector_error = 0U;
-  uint32_t address = SWAP_RECORD_FLASH_ADDRESS;
+  uint32_t address = FOUR_RECORD_FLASH_ADDRESS;
   uint32_t index;
-  const uint32_t *word = (const uint32_t *)&swap_record;
+  const uint32_t *word = (const uint32_t *)&four_record;
 
-  swap_record.magic = SWAP_RECORD_MAGIC;
-  swap_record.version = SWAP_RECORD_VERSION;
-  swap_record.checksum = Swap_Record_Checksum(&swap_record);
+  four_record.magic = FOUR_RECORD_MAGIC;
+  four_record.version = FOUR_RECORD_VERSION;
+  four_record.checksum = Four_Record_Checksum(&four_record);
 
   if (HAL_FLASH_Unlock() != HAL_OK) return 0U;
   __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR |
@@ -1273,7 +1288,7 @@ static uint8_t Swap_Record_Save_Flash(void)
   erase.NbSectors = 1U;
   status = HAL_FLASHEx_Erase(&erase, &sector_error);
   for (index = 0U;
-       status == HAL_OK && index < sizeof(swap_record) / sizeof(uint32_t);
+       status == HAL_OK && index < sizeof(four_record) / sizeof(uint32_t);
        index++) {
     status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, word[index]);
     address += sizeof(uint32_t);
@@ -1281,34 +1296,34 @@ static uint8_t Swap_Record_Save_Flash(void)
   HAL_FLASH_Lock();
 
   if (status != HAL_OK) return 0U;
-  return memcmp((const void *)SWAP_RECORD_FLASH_ADDRESS,
-                &swap_record, sizeof(swap_record)) == 0 ? 1U : 0U;
+  return memcmp((const void *)FOUR_RECORD_FLASH_ADDRESS,
+                &four_record, sizeof(four_record)) == 0 ? 1U : 0U;
 }
 
-static void Swap_Record_LED_Process(uint32_t now)
+static void Four_Record_LED_Process(uint32_t now)
 {
-  if (swap_record_flash_status == 1U) {
+  if (four_record_flash_status == 1U) {
     Status_LED(1U);
     return;
   }
-  if (swap_record_flash_status == 2U) {
-    if (now - swap_led_tick >= 120U) {
-      swap_led_tick = now;
+  if (four_record_flash_status == 2U) {
+    if (now - four_led_tick >= 120U) {
+      four_led_tick = now;
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     return;
   }
 
-  if (swap_led_toggles != 0U) {
-    if (now - swap_led_tick >= 160U) {
-      swap_led_tick = now;
-      swap_led_state = swap_led_state ? 0U : 1U;
-      Status_LED(swap_led_state);
-      swap_led_toggles--;
-      if (swap_led_toggles == 0U) Status_LED(0U);
+  if (four_led_toggles != 0U) {
+    if (now - four_led_tick >= 160U) {
+      four_led_tick = now;
+      four_led_state = four_led_state ? 0U : 1U;
+      Status_LED(four_led_state);
+      four_led_toggles--;
+      if (four_led_toggles == 0U) Status_LED(0U);
     }
-  } else if (now - swap_led_tick >= 500U) {
-    swap_led_tick = now;
+  } else if (now - four_led_tick >= 500U) {
+    four_led_tick = now;
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
   }
 }
@@ -1321,8 +1336,8 @@ int main(void)
   GPIO_Init_All();
   Encoder_Init_All();
   Encoder_Reset_Distance();
-  memset(&swap_record, 0, sizeof(swap_record));
-  swap_led_tick = HAL_GetTick();
+  memset(&four_record, 0, sizeof(four_record));
+  four_led_tick = HAL_GetTick();
   /* PC0 remains low, so no motor output is enabled. */
 
   while (1) {
@@ -1330,28 +1345,35 @@ int main(void)
     KeyEvent key_event;
 
     key_event = Key_Read_Event();
-    if (key_event == KEY_EVENT_SHORT && swap_record_stage < 2U) {
-      if (swap_record_stage == 0U) {
-        Swap_Record_Snapshot(&swap_record.b_tim2, &swap_record.b_tim3,
-                             &swap_record.b_tim4, &swap_record.b_tim8);
-        Encoder_Reset_Distance();
-        swap_record_stage = 1U;
-        swap_led_toggles = 4U;
-        swap_led_tick = now - 160U;
+    if (key_event == KEY_EVENT_SHORT && four_record_stage < 4U) {
+      if (four_record_stage == 0U) {
+        Four_Record_Snapshot(&four_record.lf_tim2, &four_record.lf_tim3,
+                             &four_record.lf_tim4, &four_record.lf_tim8);
+      } else if (four_record_stage == 1U) {
+        Four_Record_Snapshot(&four_record.rf_tim2, &four_record.rf_tim3,
+                             &four_record.rf_tim4, &four_record.rf_tim8);
+      } else if (four_record_stage == 2U) {
+        Four_Record_Snapshot(&four_record.lr_tim2, &four_record.lr_tim3,
+                             &four_record.lr_tim4, &four_record.lr_tim8);
       } else {
-        Swap_Record_Snapshot(&swap_record.c_tim2, &swap_record.c_tim3,
-                             &swap_record.c_tim4, &swap_record.c_tim8);
-        if (Swap_Record_Save_Flash()) {
-          swap_record_flash_status = 1U;
-          Status_LED(1U);
-        } else {
-          swap_record_flash_status = 2U;
-          swap_led_tick = now;
-        }
-        swap_record_stage = 2U;
+        Four_Record_Snapshot(&four_record.rr_tim2, &four_record.rr_tim3,
+                             &four_record.rr_tim4, &four_record.rr_tim8);
+      }
+
+      four_record_stage++;
+      if (four_record_stage < 4U) {
+        Encoder_Reset_Distance();
+        four_led_toggles = (uint8_t)(four_record_stage * 2U);
+        four_led_tick = now - 160U;
+      } else if (Four_Record_Save_Flash()) {
+        four_record_flash_status = 1U;
+        Status_LED(1U);
+      } else {
+        four_record_flash_status = 2U;
+        four_led_tick = now;
       }
     }
-    Swap_Record_LED_Process(now);
+    Four_Record_LED_Process(now);
     HAL_Delay(5U);
   }
 }
