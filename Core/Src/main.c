@@ -3,6 +3,7 @@
 #include "menu_display.h"
 #include "route_recorder.h"
 #include "laser_test.h"
+#include "vision_test.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -1332,49 +1333,12 @@ int main(void)
 {
   HAL_Init();
   SystemClock_Config();
-  Microsecond_Delay_Init();
   GPIO_Init_All();
-  Encoder_Init_All();
-  Encoder_Reset_Distance();
-  memset(&four_record, 0, sizeof(four_record));
-  four_led_tick = HAL_GetTick();
-  /* PC0 remains low, so no motor output is enabled. */
+  if (!VisionTest_Init()) Error_Stop();
+  /* PC0 remains low: this test never enables the motor driver. */
 
   while (1) {
-    uint32_t now = HAL_GetTick();
-    KeyEvent key_event;
-
-    key_event = Key_Read_Event();
-    if (key_event == KEY_EVENT_SHORT && four_record_stage < 4U) {
-      if (four_record_stage == 0U) {
-        Four_Record_Snapshot(&four_record.lf_tim2, &four_record.lf_tim3,
-                             &four_record.lf_tim4, &four_record.lf_tim8);
-      } else if (four_record_stage == 1U) {
-        Four_Record_Snapshot(&four_record.rf_tim2, &four_record.rf_tim3,
-                             &four_record.rf_tim4, &four_record.rf_tim8);
-      } else if (four_record_stage == 2U) {
-        Four_Record_Snapshot(&four_record.lr_tim2, &four_record.lr_tim3,
-                             &four_record.lr_tim4, &four_record.lr_tim8);
-      } else {
-        Four_Record_Snapshot(&four_record.rr_tim2, &four_record.rr_tim3,
-                             &four_record.rr_tim4, &four_record.rr_tim8);
-      }
-
-      four_record_stage++;
-      if (four_record_stage < 4U) {
-        Encoder_Reset_Distance();
-        four_led_toggles = (uint8_t)(four_record_stage * 2U);
-        four_led_tick = now - 160U;
-      } else if (Four_Record_Save_Flash()) {
-        four_record_flash_status = 1U;
-        Status_LED(1U);
-      } else {
-        four_record_flash_status = 2U;
-        four_led_tick = now;
-      }
-    }
-    Four_Record_LED_Process(now);
-    HAL_Delay(5U);
+    VisionTest_Process(HAL_GetTick());
   }
 }
 
