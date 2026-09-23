@@ -6,17 +6,20 @@
  * The 0.5...2.5 ms pulse range represents 0...180 degrees.
  */
 #define SERVO_TIMER_PERIOD_US 20000U
-#define SERVO_START_DELAY_MS 1000U
 #define SERVO_STEP_TIME_MS 100U
-#define SERVO_MIN_ANGLE_DEG 60U
-#define SERVO_MAX_ANGLE_DEG 120U
+#define SERVO_MIN_ANGLE_DEG 80U
+#define SERVO_MAX_ANGLE_DEG 100U
 #define SERVO_START_ANGLE_DEG 90U
+#define KEY_DEBOUNCE_MS 30U
 
 static TIM_HandleTypeDef htim5;
 static uint8_t upper_angle = SERVO_START_ANGLE_DEG;
 static int8_t upper_direction = 1;
-static uint32_t start_tick;
 static uint32_t last_step_tick;
+static uint32_t key_change_tick;
+static uint8_t key_raw_pressed;
+static uint8_t key_stable_pressed;
+static uint8_t gimbal_running;
 
 static uint32_t Servo_AngleToPulseUs(uint8_t angle)
 {
@@ -64,22 +67,49 @@ uint8_t GimbalTest_Init(void)
   if (HAL_TIM_PWM_ConfigChannel(&htim5, &pwm, TIM_CHANNEL_3) != HAL_OK) {
     return 0U;
   }
-  if (HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3) != HAL_OK) {
-    return 0U;
-  }
-
   upper_angle = SERVO_START_ANGLE_DEG;
   upper_direction = 1;
-  start_tick = HAL_GetTick();
-  last_step_tick = start_tick;
+  last_step_tick = HAL_GetTick();
+  key_change_tick = last_step_tick;
+  key_raw_pressed = 0U;
+  key_stable_pressed = 0U;
+  gimbal_running = 0U;
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
   return 1U;
 }
 
 void GimbalTest_Process(uint32_t now_ms)
 {
-  if (now_ms - start_tick < SERVO_START_DELAY_MS) {
-    return;
+  uint8_t pressed =
+      (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_RESET) ? 1U : 0U;
+
+  if (pressed != key_raw_pressed) {
+    key_raw_pressed = pressed;
+    key_change_tick = now_ms;
   }
+
+  if ((now_ms - key_change_tick >= KEY_DEBOUNCE_MS) &&
+      (key_stable_pressed != key_raw_pressed)) {
+    key_stable_pressed = key_raw_pressed;
+    if (key_stable_pressed != 0U) {
+      if (gimbal_running == 0U) {
+        upper_angle = SERVO_START_ANGLE_DEG;
+        upper_direction = 1;
+        Servo_SetUpperAngle(upper_angle);
+        if (HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3) == HAL_OK) {
+          gimbal_running = 1U;
+          last_step_tick = now_ms;
+          HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+        }
+      } else {
+        (void)HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_3);
+        gimbal_running = 0U;
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      }
+    }
+  }
+
+  if (gimbal_running == 0U) return;
   if (now_ms - last_step_tick < SERVO_STEP_TIME_MS) {
     return;
   }
