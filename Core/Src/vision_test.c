@@ -165,7 +165,7 @@ static void Vision_Start_Roman(uint32_t now_ms)
   vision_set_retries = 0U;
   vision_last_set_tick = now_ms;
   vision_deadline_tick = now_ms + VISION_RESULT_TIMEOUT_MS;
-  if (!vision_have_result) Vision_Display_Text("WAIT", 4U);
+  if (!vision_have_result) Vision_Display_Text("WAITING", 3U);
 }
 
 static void Vision_Start_Cancel(uint32_t now_ms)
@@ -387,7 +387,7 @@ uint8_t VisionTest_Init(void)
   __HAL_UART_ENABLE_IT(&vision_uart, UART_IT_ERR);
 
   (void)OLED_Init();
-  Vision_Display_Text("LINK", 4U);
+  Vision_Display_Text("WAITING", 3U);
   vision_last_hello_tick = HAL_GetTick() - VISION_HELLO_INTERVAL_MS;
   return 1U;
 }
