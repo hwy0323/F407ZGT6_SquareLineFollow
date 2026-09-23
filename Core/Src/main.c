@@ -4,6 +4,7 @@
 #include "route_recorder.h"
 #include "laser_test.h"
 #include "vision_test.h"
+#include "gimbal_test.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -1334,11 +1335,11 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   GPIO_Init_All();
-  if (!VisionTest_Init()) Error_Stop();
-  /* PC0 remains low: this test never enables the motor driver. */
+  if (!GimbalTest_Init()) Error_Stop();
+  /* PC0 remains low: the gimbal test never enables the motor driver. */
 
   while (1) {
-    VisionTest_Process(HAL_GetTick());
+    GimbalTest_Process(HAL_GetTick());
   }
 }
 
