@@ -1336,7 +1336,7 @@ int main(void)
   SystemClock_Config();
   GPIO_Init_All();
   if (!GimbalTest_Init()) Error_Stop();
-  /* PC0 remains low: the gimbal test never enables the motor driver. */
+  /* PC0 remains low: this test uses only the driver's regulated 5 V output. */
 
   while (1) {
     GimbalTest_Process(HAL_GetTick());
