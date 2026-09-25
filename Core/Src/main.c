@@ -5,7 +5,7 @@
 #include "laser_test.h"
 #include "vision_test.h"
 #include "gimbal_test.h"
-#include "dap_uart_test.h"
+#include "route_telemetry.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -41,8 +41,12 @@
 #define CORNER_CONFIRM_COUNT 3U
 #define CENTER_CONFIRM_COUNT 3U
 #define REACQUIRE_MAX_ACTIVE 2U
-#define LAP_TURN_LIMIT 4U
+#define LAP_TURN_LIMIT 0U
 #define CONTROL_PERIOD_MS 5U
+#define TELEMETRY_PERIOD_MS 100U
+#define LOST_LINE_GRACE_MS 500U
+#define LOST_LINE_SPEED 120
+#define LOST_LINE_MAX_CORRECTION 60
 /* Button menu: a short press changes task; a 3 s hold confirms it. */
 #define KEY_SHORT_PRESS_MAX_MS 1000U
 #define KEY_LONG_PRESS_MS 3000U
@@ -73,7 +77,7 @@
 #define SIDE_PARK_TURN_COUNT 3U
 #define REVERSE_PARK_TURN_COUNT 1U
 /* Fixed 1 m square navigation without reading the gray sensors. */
-#define ODOMETRY_ONLY 1U
+#define ODOMETRY_ONLY 0U
 #define SQUARE_SIDE_COUNTS 5730U
 
 /* T4 UART motor and encoder test: 115200 bps. */
@@ -156,6 +160,17 @@ static uint8_t start_key_release_pending = 0U;
 static uint32_t diagnostic_report_tick = 0U;
 static uint8_t odom_turns_done = 0U;
 static uint8_t odom_target_turns = 0U;
+static uint8_t last_sensor_raw = 0U;
+static uint8_t last_sensor_used = 0U;
+static int16_t last_sensor_error = 0;
+static int16_t last_left_command = 0;
+static int16_t last_right_command = 0;
+static int16_t last_line_correction = 0;
+static uint8_t line_lost_active = 0U;
+static uint32_t line_lost_tick = 0U;
+static uint8_t route_recording = 0U;
+static uint32_t route_start_tick = 0U;
+static uint32_t telemetry_tick = 0U;
 
 static void Car_Stop(void);
 static void Status_LED(uint8_t on);
@@ -515,6 +530,9 @@ static void Motor_Set_One(uint16_t in1, uint16_t in2, uint32_t channel, int16_t 
 
 static void Motor_Set_Left_Right(int16_t left_speed, int16_t right_speed)
 {
+  last_left_command = left_speed;
+  last_right_command = right_speed;
+
   if (left_speed == 0 && right_speed == 0) {
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
   } else {
@@ -697,6 +715,7 @@ static uint8_t Sensor_Read(void)
       sensor |= (uint8_t)(1U << channel);
     }
   }
+  last_sensor_raw = sensor;
   /* Keep the failed CH7 from affecting error, corner, and lost-line logic. */
   return (uint8_t)(sensor & (uint8_t)~SENSOR_FAULTY_MASK);
 }
@@ -776,6 +795,11 @@ static void Car_Start(TaskMode mode)
   corner_hits = 0U;
   center_hits = 0U;
   completed_turns = 0U;
+  last_sensor_raw = 0U;
+  last_sensor_used = 0U;
+  last_sensor_error = 0;
+  last_line_correction = 0;
+  line_lost_active = 0U;
   Encoder_Reset_Distance();
 #if ODOMETRY_ONLY
   if (task_mode == TASK_NORMAL_LINE ||
@@ -822,7 +846,31 @@ static void Follow_Line(uint8_t sensor, uint32_t now)
   CornerDirection detected_corner;
   int16_t correction;
 
-  if (sensor == 0U || Is_Ambiguous_Black_Area(sensor)) {
+  if (sensor == 0U) {
+    if (line_lost_active == 0U) {
+      line_lost_active = 1U;
+      line_lost_tick = now;
+    }
+
+    if (now - line_lost_tick <= LOST_LINE_GRACE_MS) {
+      correction = last_line_correction;
+      if (correction > LOST_LINE_MAX_CORRECTION) {
+        correction = LOST_LINE_MAX_CORRECTION;
+      }
+      if (correction < -LOST_LINE_MAX_CORRECTION) {
+        correction = -LOST_LINE_MAX_CORRECTION;
+      }
+      Motor_Set_Left_Right((int16_t)(LOST_LINE_SPEED + correction),
+                           (int16_t)(LOST_LINE_SPEED - correction));
+      return;
+    }
+
+    Car_Stop();
+    return;
+  }
+
+  line_lost_active = 0U;
+  if (Is_Ambiguous_Black_Area(sensor)) {
     Car_Stop();
     return;
   }
@@ -849,6 +897,7 @@ static void Follow_Line(uint8_t sensor, uint32_t now)
   correction = (int16_t)(Sensor_Error(sensor) * FOLLOW_KP);
   if (correction > FOLLOW_MAX_CORRECTION) correction = FOLLOW_MAX_CORRECTION;
   if (correction < -FOLLOW_MAX_CORRECTION) correction = -FOLLOW_MAX_CORRECTION;
+  last_line_correction = correction;
 
   Motor_Set_Left_Right((int16_t)(FOLLOW_SPEED + correction),
                        (int16_t)(FOLLOW_SPEED - correction));
@@ -900,8 +949,10 @@ static void Process_Corner(uint8_t sensor, uint32_t now)
       } else if (task_mode == TASK_SIDE_PARKING &&
                  completed_turns >= SIDE_PARK_TURN_COUNT) {
         Parking_Set_State(CAR_SIDE_LINE_APPROACH, now);
-      } else if (LAP_TURN_LIMIT != 0U && completed_turns >= LAP_TURN_LIMIT) {
+#if LAP_TURN_LIMIT > 0U
+      } else if (completed_turns >= LAP_TURN_LIMIT) {
         Car_Stop();
+#endif
       } else {
         car_state = CAR_FOLLOWING;
       }
@@ -1157,6 +1208,9 @@ static void Car_Process(uint32_t now)
 #else
   uint8_t sensor = Sensor_Read();
 
+  last_sensor_used = sensor;
+  last_sensor_error = Sensor_Error(sensor);
+
   if (car_state == CAR_FOLLOWING) Follow_Line(sensor, now);
   else if (car_state == CAR_ENTERING_CORNER ||
            car_state == CAR_TURNING ||
@@ -1333,14 +1387,79 @@ static void Four_Record_LED_Process(uint32_t now)
 
 int main(void)
 {
+  uint32_t control_tick = 0U;
+
   HAL_Init();
   SystemClock_Config();
+  Microsecond_Delay_Init();
   GPIO_Init_All();
-  if (!DapUartTest_Init()) Error_Stop();
-  /* PC0 remains low, so the motor driver stays disabled during this test. */
+  PWM_Init_All();
+  Encoder_Init_All();
+  if (!RouteTelemetry_Init()) Error_Stop();
+  Car_Stop();
+  RouteTelemetry_SendReady();
 
   while (1) {
-    DapUartTest_Process(HAL_GetTick());
+    uint8_t serial_command;
+    KeyEvent key_event;
+    uint32_t now = HAL_GetTick();
+
+    key_event = Key_Read_Event();
+    if (key_event == KEY_EVENT_SHORT) {
+      if (car_state == CAR_STOPPED) {
+        Car_Start(TASK_NORMAL_LINE);
+        route_recording = 1U;
+        route_start_tick = now;
+        telemetry_tick = now - TELEMETRY_PERIOD_MS;
+        RouteTelemetry_SendStart(now);
+      } else {
+        Car_Stop();
+        if (route_recording != 0U) {
+          RouteTelemetry_SendStop(now - route_start_tick, "KEY");
+          route_recording = 0U;
+        }
+      }
+    }
+
+    /* Sending X from COM14 is an emergency stop; serial start is disabled. */
+    if (RouteTelemetry_ReadByte(&serial_command) != 0U &&
+        (serial_command == 'x' || serial_command == 'X')) {
+      Car_Stop();
+      if (route_recording != 0U) {
+        RouteTelemetry_SendStop(now - route_start_tick, "REMOTE_X");
+        route_recording = 0U;
+      }
+    }
+
+    if (car_state != CAR_STOPPED && now - control_tick >= CONTROL_PERIOD_MS) {
+      control_tick = now;
+      Car_Process(now);
+    }
+
+    if (route_recording != 0U && car_state == CAR_STOPPED) {
+      RouteTelemetry_SendStop(now - route_start_tick, "AUTO_SAFETY");
+      route_recording = 0U;
+    }
+
+    if (route_recording != 0U &&
+        now - telemetry_tick >= TELEMETRY_PERIOD_MS) {
+      telemetry_tick = now;
+      RouteTelemetry_SendSample(
+          now - route_start_tick,
+          last_sensor_raw,
+          last_sensor_used,
+          last_sensor_error,
+          Encoder_Signed_Count(&htim4),
+          Encoder_Signed_Count(&htim3),
+          Encoder_Signed_Count(&htim8),
+          Encoder_Signed_Count(&htim2),
+          last_left_command,
+          last_right_command,
+          (uint8_t)car_state,
+          completed_turns);
+    }
+
+    HAL_Delay(1U);
   }
 }
 
