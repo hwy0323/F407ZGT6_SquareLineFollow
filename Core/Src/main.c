@@ -5,6 +5,7 @@
 #include "laser_test.h"
 #include "vision_test.h"
 #include "gimbal_test.h"
+#include "dap_uart_test.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -1335,11 +1336,11 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   GPIO_Init_All();
-  if (!GimbalTest_Init()) Error_Stop();
-  /* PC0 remains low: this test uses only the driver's regulated 5 V output. */
+  if (!DapUartTest_Init()) Error_Stop();
+  /* PC0 remains low, so the motor driver stays disabled during this test. */
 
   while (1) {
-    GimbalTest_Process(HAL_GetTick());
+    DapUartTest_Process(HAL_GetTick());
   }
 }
 
