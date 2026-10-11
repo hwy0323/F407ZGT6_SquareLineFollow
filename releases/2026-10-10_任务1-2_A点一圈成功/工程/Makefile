@@ -1,4 +1,4 @@
-ROOT := ../..
+ROOT := ../../..
 TOOL_ROOT ?= F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin
 CC := $(TOOL_ROOT)/arm-none-eabi-gcc.exe
 OBJCOPY := $(TOOL_ROOT)/arm-none-eabi-objcopy.exe

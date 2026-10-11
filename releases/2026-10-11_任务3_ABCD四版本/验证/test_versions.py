@@ -43,17 +43,22 @@ class Task3ReleaseTests(unittest.TestCase):
                 self.assertTrue((RELEASE / f"{version}/工程/main.c").is_file())
                 self.assertTrue(any((RELEASE / f"{version}/固件").glob("*.bin")))
                 self.assertTrue((RELEASE / f"{version}/README.md").is_file())
-        for version in "ACD":
+        for version in "ABCD":
             self.assertTrue(any((RELEASE / f"{version}/串口记录").glob("*.csv")))
 
-    def test_B_has_three_post_C_turns_and_explicit_test_pending_marker(self):
+    def test_B_preserves_tested_identity_and_records_actual_protective_stop(self):
         source = (RELEASE / "B/工程/main.c").read_text(encoding="utf-8")
         readme = (RELEASE / "B/README.md").read_text(encoding="utf-8")
         self.assertIn("#define CORNER_TARGET_COUNT 4U", source)
         self.assertIn('"B_REACHED_FROM_BC_GARAGE"', source)
         self.assertIn('"TASK3_SQUARE_C_MULTI_TO_B_UNTESTED"', source)
         self.assertIn("turns == 3U", source)
-        self.assertIn("尚未烧录", readme)
+        self.assertIn("用户两次现场评价完美", readme)
+        self.assertIn("EXPECTED_CORNER_MISSING", readme)
+        log = (RELEASE / "B/串口记录/to_B_20261011_120921.csv").read_text(encoding="utf-8-sig")
+        self.assertIn("EVENT,START,TASK3_SQUARE_C_MULTI_TO_B_UNTESTED", log)
+        self.assertIn("EVENT,STOP,11105,EXPECTED_CORNER_MISSING,turns=3", log)
+        self.assertNotIn("EVENT,STOP,11105,B_REACHED_FROM_BC_GARAGE", log)
         self.assertIn("5100±900", readme)
 
     def test_A_and_D_labels_are_distinct_from_B_test_pending(self):
