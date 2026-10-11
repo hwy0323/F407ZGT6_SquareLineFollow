@@ -1,2 +1,4 @@
 build/*.o
 build/*.d
+releases/2026-10-11_任务3_ABCD四版本/*/工程/build/
+__pycache__/
