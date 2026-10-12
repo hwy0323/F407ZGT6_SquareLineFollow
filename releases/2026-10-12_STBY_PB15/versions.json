@@ -1,0 +1,79 @@
+[
+  {
+    "id": "task1_1",
+    "base": "releases/2026-10-11_任务1-1_A到B/工程",
+    "name": "F407ZGT6_Task1_AB",
+    "flags": "-DGIT_VERIFIED_CORNER -DTASK1_AB",
+    "desc": "1-1：A→B，到 B 停车"
+  },
+  {
+    "id": "task1_2",
+    "base": "releases/2026-10-10_任务1-2_A点一圈成功/工程",
+    "name": "F407ZGT6_Task1_OneLap",
+    "flags": "-DGIT_VERIFIED_CORNER -DTASK1_ONE_LAP",
+    "desc": "1-2：A 点出发绕场一周回 A"
+  },
+  {
+    "id": "task2_1",
+    "base": "releases/2026-10-11_任务2-1_倒车入库/工程",
+    "name": "F407ZGT6_Task2_1_ReverseEntry",
+    "flags": "-DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DREVERSE_PARK_AUTO",
+    "desc": "2-1：A 点出发，BC 倒车入库后停车"
+  },
+  {
+    "id": "task2_2",
+    "base": "releases/2026-10-11_任务2-2_侧方入库/工程",
+    "name": "F407ZGT6_Task2_2_SideEntry",
+    "flags": "-DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DSIDE_PARK_AUTO",
+    "desc": "2-2：A 点出发，DA 侧方入库后停车"
+  },
+  {
+    "id": "task3_A",
+    "base": "releases/2026-10-11_任务3_ABCD四版本/A/工程",
+    "name": "F407ZGT6_Task3_ToA",
+    "flags": "-DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DGARAGE_A_AUTO -DPOST_EXIT_TRACK -DSTOP_AFTER_ONE_CORNER",
+    "desc": "任务三：BC 库内出发，固定到 A"
+  },
+  {
+    "id": "task3_B",
+    "base": "releases/2026-10-11_任务3_ABCD四版本/B/工程",
+    "name": "F407ZGT6_Task3_ToB",
+    "flags": "-DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DGARAGE_A_AUTO -DPOST_EXIT_TRACK -DSTOP_AFTER_ONE_CORNER",
+    "desc": "任务三：BC 库内出发，固定到 B"
+  },
+  {
+    "id": "task3_C",
+    "base": "releases/2026-10-11_任务3_ABCD四版本/C/工程",
+    "name": "F407ZGT6_Task3_ToC",
+    "flags": "-DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DGARAGE_A_AUTO -DPOST_EXIT_TRACK -DSTOP_AFTER_ONE_CORNER",
+    "desc": "任务三：BC 库内出发，固定到 C"
+  },
+  {
+    "id": "task3_D",
+    "base": "releases/2026-10-11_任务3_ABCD四版本/D/工程",
+    "name": "F407ZGT6_Task3_ToD",
+    "flags": "-DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DGARAGE_A_AUTO -DPOST_EXIT_TRACK -DSTOP_AFTER_ONE_CORNER",
+    "desc": "任务三：BC 库内出发，固定到 D"
+  },
+  {
+    "id": "square",
+    "base": "releases/2026-10-07_正方形循迹/工程",
+    "name": "F407ZGT6_FourCorner_GarageLine_Test",
+    "flags": "-DGIT_VERIFIED_CORNER",
+    "desc": "10.7 正方形成功循迹，四弯后停车"
+  },
+  {
+    "id": "manual",
+    "base": "releases/2026-10-10_侧方停车路线记录/工程/串口单步控制",
+    "name": "F407ZGT6_Manual_Control",
+    "flags": "-DPIVOT_TEST -DPIVOT_MULTI",
+    "desc": "串口单步转向和直行控制"
+  },
+  {
+    "id": "oled",
+    "base": ".",
+    "name": "F407ZGT6_OLED_Menu",
+    "flags": "",
+    "desc": "OLED 菜单测试，电机始终禁用"
+  }
+]

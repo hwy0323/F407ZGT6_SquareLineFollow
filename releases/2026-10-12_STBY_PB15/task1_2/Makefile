@@ -1,0 +1,4 @@
+ROOT := ../../..
+TARGET_NAME := F407ZGT6_Task1_OneLap_STBY_PB15
+VERSION_FLAGS := -DGIT_VERIFIED_CORNER -DTASK1_ONE_LAP
+include ../build_pb15.mk

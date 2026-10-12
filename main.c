@@ -1,4 +1,8 @@
 #include "main.h"
+
+/* Common TB6612 standby: high = enabled, low = stopped. */
+#define MOTOR_STBY_PORT GPIOB
+#define MOTOR_STBY_PIN GPIO_PIN_15
 #include "oled.h"
 #include "menu_ui.h"
 #include <stdio.h>
@@ -24,7 +28,7 @@ void UART4_IRQHandler(void) { }
 
 void Error_Handler(void)
 {
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_STBY_PORT, MOTOR_STBY_PIN, GPIO_PIN_RESET);
   menu_test_status[1] = 0xEEU;
   while (1) { }
 }
@@ -33,16 +37,18 @@ static void stationary_gpio_init(void)
 {
   GPIO_InitTypeDef pin = {0};
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_STBY_PORT, MOTOR_STBY_PIN, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOD, 0x00FFU, GPIO_PIN_RESET);
-  pin.Pin = GPIO_PIN_0;
+  pin.Pin = MOTOR_STBY_PIN;
   pin.Mode = GPIO_MODE_OUTPUT_PP;
-  pin.Pull = GPIO_NOPULL;
+  pin.Pull = GPIO_PULLDOWN;
   pin.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &pin);
+  HAL_GPIO_Init(MOTOR_STBY_PORT, &pin);
+  pin.Pull = GPIO_NOPULL;
   pin.Pin = 0x00FFU;
   HAL_GPIO_Init(GPIOD, &pin);
   pin.Pin = GPIO_PIN_15;
