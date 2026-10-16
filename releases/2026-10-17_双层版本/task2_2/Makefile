@@ -1,0 +1,5 @@
+ROOT := ../../..
+TARGET_NAME := F407ZGT6_Side_Reference_Accepted_Extra35_STBY_PB15
+VERSION_FLAGS := -DGIT_VERIFIED_CORNER -DPIVOT_TEST -DPIVOT_MULTI -DROUTE_REPLAY -DSIDE_PARK_AUTO
+EXTRA_SOURCES := reference_steps.c
+include ../build.mk

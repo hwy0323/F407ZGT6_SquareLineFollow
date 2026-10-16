@@ -1,0 +1,4 @@
+ROOT := ../../..
+TARGET_NAME := F407ZGT6_Task1_AB_Remote_STBY_PB15
+VERSION_FLAGS := -DGIT_VERIFIED_CORNER -DTASK1_AB
+include ../build.mk
