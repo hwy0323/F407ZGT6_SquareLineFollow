@@ -1,0 +1,146 @@
+﻿../../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c: In function 'HAL_PWR_EnterSLEEPMode':
+../../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c:379:38: warning: unused parameter 'Regulator' [-Wunused-parameter]
+  379 | void HAL_PWR_EnterSLEEPMode(uint32_t Regulator, uint8_t SLEEPEntry)
+      |                             ~~~~~~~~~^~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetPowerMode':
+../../Core/Src/vl53l0x_api.c:237:56: warning: unused parameter 'pPowerMode' [-Wunused-parameter]
+  237 |                                    VL53L0X_PowerModes *pPowerMode)
+      |                                    ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_SetGroupParamHold':
+../../Core/Src/vl53l0x_api.c:326:53: warning: unused parameter 'Dev' [-Wunused-parameter]
+  326 | VL53L0X_Error VL53L0X_SetGroupParamHold(VL53L0X_DEV Dev, uint8_t GroupParamHold)
+      |                                         ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:326:66: warning: unused parameter 'GroupParamHold' [-Wunused-parameter]
+  326 | VL53L0X_Error VL53L0X_SetGroupParamHold(VL53L0X_DEV Dev, uint8_t GroupParamHold)
+      |                                                          ~~~~~~~~^~~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetUpperLimitMilliMeter':
+../../Core/Src/vl53l0x_api.c:338:59: warning: unused parameter 'Dev' [-Wunused-parameter]
+  338 | VL53L0X_Error VL53L0X_GetUpperLimitMilliMeter(VL53L0X_DEV Dev,
+      |                                               ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:339:19: warning: unused parameter 'pUpperLimitMilliMeter' [-Wunused-parameter]
+  339 |         uint16_t *pUpperLimitMilliMeter)
+      |         ~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_WaitDeviceBooted':
+../../Core/Src/vl53l0x_api.c:779:52: warning: unused parameter 'Dev' [-Wunused-parameter]
+  779 | VL53L0X_Error VL53L0X_WaitDeviceBooted(VL53L0X_DEV Dev)
+      |                                        ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_SetHistogramMode':
+../../Core/Src/vl53l0x_api.c:1030:52: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 1030 | VL53L0X_Error VL53L0X_SetHistogramMode(VL53L0X_DEV Dev,
+      |                                        ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:1031:32: warning: unused parameter 'HistogramMode' [-Wunused-parameter]
+ 1031 |         VL53L0X_HistogramModes HistogramMode)
+      |         ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetHistogramMode':
+../../Core/Src/vl53l0x_api.c:1043:52: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 1043 | VL53L0X_Error VL53L0X_GetHistogramMode(VL53L0X_DEV Dev,
+      |                                        ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:1044:33: warning: unused parameter 'pHistogramMode' [-Wunused-parameter]
+ 1044 |         VL53L0X_HistogramModes *pHistogramMode)
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'sequence_step_enabled':
+../../Core/Src/vl53l0x_api.c:1203:49: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 1203 | VL53L0X_Error sequence_step_enabled(VL53L0X_DEV Dev,
+      |                                     ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetNumberOfSequenceSteps':
+../../Core/Src/vl53l0x_api.c:1296:60: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 1296 | VL53L0X_Error VL53L0X_GetNumberOfSequenceSteps(VL53L0X_DEV Dev,
+      |                                                ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_PerformSingleHistogramMeasurement':
+../../Core/Src/vl53l0x_api.c:2136:69: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2136 | VL53L0X_Error VL53L0X_PerformSingleHistogramMeasurement(VL53L0X_DEV Dev,
+      |                                                         ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:2137:45: warning: unused parameter 'pHistogramMeasurementData' [-Wunused-parameter]
+ 2137 |         VL53L0X_HistogramMeasurementData_t *pHistogramMeasurementData)
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_PerformXTalkMeasurement':
+../../Core/Src/vl53l0x_api.c:2164:59: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2164 | VL53L0X_Error VL53L0X_PerformXTalkMeasurement(VL53L0X_DEV Dev,
+      |                                               ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:2165:18: warning: unused parameter 'TimeoutMs' [-Wunused-parameter]
+ 2165 |         uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad,
+      |         ~~~~~~~~~^~~~~~~~~
+../../Core/Src/vl53l0x_api.c:2165:45: warning: unused parameter 'pXtalkPerSpad' [-Wunused-parameter]
+ 2165 |         uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad,
+      |                             ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c:2166:18: warning: unused parameter 'pAmbientTooHigh' [-Wunused-parameter]
+ 2166 |         uint8_t *pAmbientTooHigh)
+      |         ~~~~~~~~~^~~~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_WaitDeviceReadyForNewMeasurement':
+../../Core/Src/vl53l0x_api.c:2431:68: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2431 | VL53L0X_Error VL53L0X_WaitDeviceReadyForNewMeasurement(VL53L0X_DEV Dev,
+      |                                                        ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:2432:18: warning: unused parameter 'MaxLoop' [-Wunused-parameter]
+ 2432 |         uint32_t MaxLoop)
+      |         ~~~~~~~~~^~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetHistogramMeasurementData':
+../../Core/Src/vl53l0x_api.c:2624:63: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2624 | VL53L0X_Error VL53L0X_GetHistogramMeasurementData(VL53L0X_DEV Dev,
+      |                                                   ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:2625:45: warning: unused parameter 'pHistogramMeasurementData' [-Wunused-parameter]
+ 2625 |         VL53L0X_HistogramMeasurementData_t *pHistogramMeasurementData)
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_SetNumberOfROIZones':
+../../Core/Src/vl53l0x_api.c:2664:55: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2664 | VL53L0X_Error VL53L0X_SetNumberOfROIZones(VL53L0X_DEV Dev,
+      |                                           ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetNumberOfROIZones':
+../../Core/Src/vl53l0x_api.c:2679:55: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2679 | VL53L0X_Error VL53L0X_GetNumberOfROIZones(VL53L0X_DEV Dev,
+      |                                           ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetMaxNumberOfROIZones':
+../../Core/Src/vl53l0x_api.c:2692:58: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 2692 | VL53L0X_Error VL53L0X_GetMaxNumberOfROIZones(VL53L0X_DEV Dev,
+      |                                              ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_SetInterruptThresholds':
+../../Core/Src/vl53l0x_api.c:2875:29: warning: unused parameter 'DeviceMode' [-Wunused-parameter]
+ 2875 |         VL53L0X_DeviceModes DeviceMode, FixPoint1616_t ThresholdLow,
+      |         ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_GetInterruptThresholds':
+../../Core/Src/vl53l0x_api.c:2901:29: warning: unused parameter 'DeviceMode' [-Wunused-parameter]
+ 2901 |         VL53L0X_DeviceModes DeviceMode, FixPoint1616_t *pThresholdLow,
+      |         ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_ClearInterruptMask':
+../../Core/Src/vl53l0x_api.c:2963:51: warning: unused parameter 'InterruptMask' [-Wunused-parameter]
+ 2963 |                                          uint32_t InterruptMask)
+      |                                          ~~~~~~~~~^~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api.c: In function 'VL53L0X_EnableInterruptMask':
+../../Core/Src/vl53l0x_api.c:3012:55: warning: unused parameter 'Dev' [-Wunused-parameter]
+ 3012 | VL53L0X_Error VL53L0X_EnableInterruptMask(VL53L0X_DEV Dev,
+      |                                           ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api.c:3013:52: warning: unused parameter 'InterruptMask' [-Wunused-parameter]
+ 3013 |                                           uint32_t InterruptMask)
+      |                                           ~~~~~~~~~^~~~~~~~~~~~~
+../../Core/Src/vl53l0x_api_core.c: In function 'VL53L0X_calc_macro_period_ps':
+../../Core/Src/vl53l0x_api_core.c:482:51: warning: unused parameter 'Dev' [-Wunused-parameter]
+  482 | uint32_t VL53L0X_calc_macro_period_ps(VL53L0X_DEV Dev,
+      |                                       ~~~~~~~~~~~~^~~
+../../Core/Src/vl53l0x_api_core.c: In function 'get_dmax_lut_points':
+../../Core/Src/vl53l0x_api_core.c:1505:31: warning: comparison of integer expressions of different signedness: 'int' and 'uint32_t' {aka 'long unsigned int'} [-Wsign-compare]
+ 1505 |         for (index = 0; index < lut_size; index++) {
+      |                               ^
+../../Core/Src/vl53l0x_api_core.c:1512:19: warning: comparison of integer expressions of different signedness: 'int' and 'uint32_t' {aka 'long unsigned int'} [-Wsign-compare]
+ 1512 |         if (index == lut_size) {
+      |                   ^~
+../../Core/Src/vl53l0x_api_core.c: In function 'VL53L0X_calc_sigma_estimate':
+../../Core/Src/vl53l0x_api_core.c:1768:36: warning: taking the absolute value of unsigned type 'FixPoint1616_t' {aka 'long unsigned int'} has no effect [-Wabsolute-value]
+ 1768 |                 xTalkCorrection  = abs(diff1_mcps/diff2_mcps);
+      |                                    ^~~
+../../Core/Src/vl53l0x_api_strings.c: In function 'VL53L0X_get_limit_check_info':
+../../Core/Src/vl53l0x_api_strings.c:422:56: warning: unused parameter 'Dev' [-Wunused-parameter]
+  422 | VL53L0X_Error VL53L0X_get_limit_check_info(VL53L0X_DEV Dev,
+      |                                            ~~~~~~~~~~~~^~~
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-closer.o): in function `_close_r':
+(.text._close_r+0xc): warning: _close is not implemented and will always fail
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lseekr.o): in function `_lseek_r':
+(.text._lseek_r+0x10): warning: _lseek is not implemented and will always fail
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-closer.o): note: the message above does not take linker garbage collection into account
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lseekr.o): note: the message above does not take linker garbage collection into account
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-readr.o): in function `_read_r':
+(.text._read_r+0x10): warning: _read is not implemented and will always fail
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-readr.o): note: the message above does not take linker garbage collection into account
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-writer.o): in function `_write_r':
+(.text._write_r+0x10): warning: _write is not implemented and will always fail
+F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/bin/ld.exe: F:/cbide/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344/tools/bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-writer.o): note: the message above does not take linker garbage collection into account
+   text	   data	    bss	    dec	    hex	filename
+  51740	    796	   4868	  57404	   e03c	build/F407ZGT6_Ext2_LaserSearch_UNTESTED_STBY_PB15.elf

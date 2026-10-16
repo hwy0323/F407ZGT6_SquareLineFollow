@@ -1,0 +1,2 @@
+﻿PASS LOGIC: 481 range values plus noise, limits, four-edge features and plans
+PASS APP: 8 full bay/edge workflows, probe return, valid/frozen/error ranges, corners, stops, command and KEY gates
