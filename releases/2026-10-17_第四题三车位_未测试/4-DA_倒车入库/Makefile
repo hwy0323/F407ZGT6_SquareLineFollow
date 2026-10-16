@@ -1,0 +1,5 @@
+ROOT := ../../..
+TARGET_NAME := F407ZGT6_Task4_DA_Reverse_UNTESTED_STBY_PB15
+VERSION_FLAGS := -DGIT_VERIFIED_CORNER -DTASK4_CASE=3
+EXTRA_SOURCES := entry_plan.c
+include ../build.mk

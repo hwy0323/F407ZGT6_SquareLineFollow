@@ -1,0 +1,418 @@
+{
+  "date": "2026-10-17",
+  "experiment": "task5_three_garage_map",
+  "firmware_sha256": "399EC47C795015EDACF7403851D8F3A09CAD0DE3A00A7438AC4C917FCB40266E",
+  "origin": "A, heading AB to B",
+  "direction": "A-B-C-D-A",
+  "stop_event": "EVENT,STOP,15354,A_REACHED_MAP,turns=4",
+  "corners": [
+    {
+      "phase": "ORIGIN",
+      "number": 0,
+      "point": "origin",
+      "elapsed_ms": 0,
+      "gray_hex": "18",
+      "yaw_x100": 8869,
+      "encoder_signed_counts": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "phase": "START",
+      "number": 1,
+      "point": "B",
+      "elapsed_ms": 3108,
+      "gray_hex": "1F",
+      "yaw_x100": 8740,
+      "encoder_signed_counts": [
+        -5083,
+        -5092,
+        5107,
+        5139
+      ]
+    },
+    {
+      "phase": "DONE",
+      "number": 1,
+      "point": "B",
+      "elapsed_ms": 3748,
+      "gray_hex": "20",
+      "yaw_x100": 16707,
+      "encoder_signed_counts": [
+        -5830,
+        -6057,
+        4682,
+        5054
+      ]
+    },
+    {
+      "phase": "START",
+      "number": 2,
+      "point": "C",
+      "elapsed_ms": 7175,
+      "gray_hex": "1F",
+      "yaw_x100": 18254,
+      "encoder_signed_counts": [
+        -11197,
+        -11501,
+        9872,
+        10293
+      ]
+    },
+    {
+      "phase": "DONE",
+      "number": 2,
+      "point": "C",
+      "elapsed_ms": 7825,
+      "gray_hex": "60",
+      "yaw_x100": 26093,
+      "encoder_signed_counts": [
+        -11931,
+        -12473,
+        9437,
+        10196
+      ]
+    },
+    {
+      "phase": "START",
+      "number": 3,
+      "point": "D",
+      "elapsed_ms": 11257,
+      "gray_hex": "1F",
+      "yaw_x100": 27662,
+      "encoder_signed_counts": [
+        -17333,
+        -17976,
+        14625,
+        15451
+      ]
+    },
+    {
+      "phase": "DONE",
+      "number": 3,
+      "point": "D",
+      "elapsed_ms": 11902,
+      "gray_hex": "30",
+      "yaw_x100": 35155,
+      "encoder_signed_counts": [
+        -18077,
+        -18958,
+        14248,
+        15345
+      ]
+    },
+    {
+      "phase": "START",
+      "number": 4,
+      "point": "A",
+      "elapsed_ms": 15342,
+      "gray_hex": "1F",
+      "yaw_x100": 1172,
+      "encoder_signed_counts": [
+        -23519,
+        -24518,
+        19416,
+        20572
+      ]
+    }
+  ],
+  "garage_events": [
+    {
+      "phase": "PAUSE",
+      "number": 1,
+      "edge": "BC",
+      "elapsed_ms": 4778,
+      "gray_hex": "0F",
+      "left_front_progress_counts": 7550,
+      "yaw_x100": 18225,
+      "yaw_relative_wrapped_x100": 9356,
+      "encoder_signed_counts": [
+        -7550,
+        -7858,
+        6208,
+        6626
+      ]
+    },
+    {
+      "phase": "RESUME",
+      "number": 1,
+      "edge": "BC",
+      "elapsed_ms": 4881,
+      "gray_hex": "08",
+      "left_front_progress_counts": 7689,
+      "yaw_x100": 18262,
+      "yaw_relative_wrapped_x100": 9393,
+      "encoder_signed_counts": [
+        -7689,
+        -7998,
+        6353,
+        6774
+      ]
+    },
+    {
+      "phase": "CLEARED",
+      "number": 1,
+      "edge": "BC",
+      "elapsed_ms": 5084,
+      "gray_hex": "08",
+      "left_front_progress_counts": 7906,
+      "yaw_x100": 18257,
+      "yaw_relative_wrapped_x100": 9388,
+      "encoder_signed_counts": [
+        -7906,
+        -8215,
+        6566,
+        6985
+      ]
+    },
+    {
+      "phase": "PAUSE",
+      "number": 2,
+      "edge": "BC",
+      "elapsed_ms": 5937,
+      "gray_hex": "3F",
+      "left_front_progress_counts": 9303,
+      "yaw_x100": 18363,
+      "yaw_relative_wrapped_x100": 9494,
+      "encoder_signed_counts": [
+        -9303,
+        -9614,
+        7954,
+        8373
+      ]
+    },
+    {
+      "phase": "RESUME",
+      "number": 2,
+      "edge": "BC",
+      "elapsed_ms": 6039,
+      "gray_hex": "18",
+      "left_front_progress_counts": 9453,
+      "yaw_x100": 18412,
+      "yaw_relative_wrapped_x100": 9543,
+      "encoder_signed_counts": [
+        -9453,
+        -9752,
+        8097,
+        8517
+      ]
+    },
+    {
+      "phase": "CLEARED",
+      "number": 2,
+      "edge": "BC",
+      "elapsed_ms": 6242,
+      "gray_hex": "18",
+      "left_front_progress_counts": 9671,
+      "yaw_x100": 18388,
+      "yaw_relative_wrapped_x100": 9519,
+      "encoder_signed_counts": [
+        -9671,
+        -9969,
+        8323,
+        8741
+      ]
+    },
+    {
+      "phase": "PAUSE",
+      "number": 3,
+      "edge": "CD",
+      "elapsed_ms": 8625,
+      "gray_hex": "0F",
+      "left_front_progress_counts": 13252,
+      "yaw_x100": 27340,
+      "yaw_relative_wrapped_x100": -17529,
+      "encoder_signed_counts": [
+        -13252,
+        -13876,
+        10591,
+        11408
+      ]
+    },
+    {
+      "phase": "RESUME",
+      "number": 3,
+      "edge": "CD",
+      "elapsed_ms": 8725,
+      "gray_hex": "0C",
+      "left_front_progress_counts": 13387,
+      "yaw_x100": 27439,
+      "yaw_relative_wrapped_x100": -17430,
+      "encoder_signed_counts": [
+        -13387,
+        -14020,
+        10725,
+        11545
+      ]
+    },
+    {
+      "phase": "CLEARED",
+      "number": 3,
+      "edge": "CD",
+      "elapsed_ms": 8925,
+      "gray_hex": "0C",
+      "left_front_progress_counts": 13603,
+      "yaw_x100": 27494,
+      "yaw_relative_wrapped_x100": -17375,
+      "encoder_signed_counts": [
+        -13604,
+        -14233,
+        10926,
+        11747
+      ]
+    },
+    {
+      "phase": "PAUSE",
+      "number": 4,
+      "edge": "CD",
+      "elapsed_ms": 10095,
+      "gray_hex": "1F",
+      "left_front_progress_counts": 15555,
+      "yaw_x100": 27934,
+      "yaw_relative_wrapped_x100": -16935,
+      "encoder_signed_counts": [
+        -15555,
+        -16208,
+        12817,
+        13643
+      ]
+    },
+    {
+      "phase": "RESUME",
+      "number": 4,
+      "edge": "CD",
+      "elapsed_ms": 10199,
+      "gray_hex": "10",
+      "left_front_progress_counts": 15713,
+      "yaw_x100": 27981,
+      "yaw_relative_wrapped_x100": -16888,
+      "encoder_signed_counts": [
+        -15713,
+        -16367,
+        12960,
+        13792
+      ]
+    },
+    {
+      "phase": "CLEARED",
+      "number": 4,
+      "edge": "CD",
+      "elapsed_ms": 10403,
+      "gray_hex": "30",
+      "left_front_progress_counts": 15928,
+      "yaw_x100": 27941,
+      "yaw_relative_wrapped_x100": -16928,
+      "encoder_signed_counts": [
+        -15928,
+        -16580,
+        13194,
+        14021
+      ]
+    },
+    {
+      "phase": "PAUSE",
+      "number": 5,
+      "edge": "DA",
+      "elapsed_ms": 12842,
+      "gray_hex": "0F",
+      "left_front_progress_counts": 19673,
+      "yaw_x100": 1052,
+      "yaw_relative_wrapped_x100": -7817,
+      "encoder_signed_counts": [
+        -19673,
+        -20671,
+        15572,
+        16721
+      ]
+    },
+    {
+      "phase": "RESUME",
+      "number": 5,
+      "edge": "DA",
+      "elapsed_ms": 12942,
+      "gray_hex": "0C",
+      "left_front_progress_counts": 19811,
+      "yaw_x100": 1094,
+      "yaw_relative_wrapped_x100": -7775,
+      "encoder_signed_counts": [
+        -19811,
+        -20808,
+        15715,
+        16865
+      ]
+    },
+    {
+      "phase": "CLEARED",
+      "number": 5,
+      "edge": "DA",
+      "elapsed_ms": 13142,
+      "gray_hex": "0C",
+      "left_front_progress_counts": 20024,
+      "yaw_x100": 1168,
+      "yaw_relative_wrapped_x100": -7701,
+      "encoder_signed_counts": [
+        -20024,
+        -21037,
+        15912,
+        17063
+      ]
+    },
+    {
+      "phase": "PAUSE",
+      "number": 6,
+      "edge": "DA",
+      "elapsed_ms": 13972,
+      "gray_hex": "1F",
+      "left_front_progress_counts": 21381,
+      "yaw_x100": 1394,
+      "yaw_relative_wrapped_x100": -7475,
+      "encoder_signed_counts": [
+        -21381,
+        -22403,
+        17242,
+        18393
+      ]
+    },
+    {
+      "phase": "RESUME",
+      "number": 6,
+      "edge": "DA",
+      "elapsed_ms": 14072,
+      "gray_hex": "18",
+      "left_front_progress_counts": 21530,
+      "yaw_x100": 1458,
+      "yaw_relative_wrapped_x100": -7411,
+      "encoder_signed_counts": [
+        -21530,
+        -22546,
+        17380,
+        18541
+      ]
+    },
+    {
+      "phase": "CLEARED",
+      "number": 6,
+      "edge": "DA",
+      "elapsed_ms": 14272,
+      "gray_hex": "18",
+      "left_front_progress_counts": 21747,
+      "yaw_x100": 1454,
+      "yaw_relative_wrapped_x100": -7415,
+      "encoder_signed_counts": [
+        -21747,
+        -22766,
+        17601,
+        18760
+      ]
+    }
+  ],
+  "notes": [
+    "Position classification uses existing corner windows; onsite confirmation remains necessary.",
+    "Fourth corner is detected then stopped before rotating A.",
+    "Counts are signed cumulative wheel measurements including skid steering, not geometric straight-line distance.",
+    "Yaw relative values wrap into -180..180 degrees; use continuous unwrapping when composing full-lap headings."
+  ]
+}

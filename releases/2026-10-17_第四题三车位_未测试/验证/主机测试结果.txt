@@ -1,0 +1,6 @@
+PASS NAV case=1: non-target crossings=0, target edge/window/first-line checks, true corners, gap and stop
+PASS MOTION/WORKFLOW case=1: 3 steps, full-frame single start, error stops, endpoint bounds, wrap and no endpoint pulses
+PASS NAV case=2: non-target crossings=2, target edge/window/first-line checks, true corners, gap and stop
+PASS MOTION/WORKFLOW case=2: 5 steps, full-frame single start, error stops, endpoint bounds, wrap and no endpoint pulses
+PASS NAV case=3: non-target crossings=4, target edge/window/first-line checks, true corners, gap and stop
+PASS MOTION/WORKFLOW case=3: 3 steps, full-frame single start, error stops, endpoint bounds, wrap and no endpoint pulses
