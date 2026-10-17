@@ -34,10 +34,10 @@ static void search_measure(uint32_t now)
   if(laser_range_status!=0U || laser_distance_mm<20U || laser_distance_mm>2000U)return;
   range_samples[range_used++]=laser_distance_mm;
   if(range_used<RANGE_SAMPLE_COUNT)return;
-  garage_type=search_classify(range_samples,LASER_RIGHT_OFFSET_MM,&range_median);
-  snprintf(line,sizeof(line),"EVENT,TYPE,%s,median=%u,depth_est=%ld,offset=%d\r\n",
+  garage_type=search_classify(range_samples,&range_median);
+  snprintf(line,sizeof(line),"EVENT,TYPE,%s,median_mm=%u,threshold_mm=%u,raw_range=1\r\n",
     garage_type==GARAGE_REVERSE?"REVERSE":garage_type==GARAGE_SIDE?"SIDE":"UNKNOWN",
-    range_median,(long)(range_median+LASER_RIGHT_OFFSET_MM),LASER_RIGHT_OFFSET_MM);send_text(line);
+    range_median,LASER_TYPE_THRESHOLD_MM);send_text(line);
   if(garage_type==GARAGE_UNKNOWN){combined_abort("LASER_TYPE_UNKNOWN");return;}
   if(!search_plan_return(reference_progress)){combined_abort("PROBE_DISTANCE_ERROR");return;}
   auto_phase=PROBE_BACK;search_next_motion(HAL_GetTick());

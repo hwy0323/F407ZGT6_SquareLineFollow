@@ -4,8 +4,8 @@ static void start_run(void)
   if(auto_phase!=IDLE || reference_run_used || pivot_active){
     send_text("EVENT,REFUSE_START,once_per_reset_or_busy\r\n");return;
   }
-  if(!LASER_OFFSET_CONFIRMED || laser_status!=4U){
-    send_text("EVENT,REFUSE_START,laser_init_or_offset\r\n");return;
+  if(laser_status!=4U){
+    send_text("EVENT,REFUSE_START,laser_init\r\n");return;
   }
   if(HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_15)==GPIO_PIN_RESET ||
      !gray_frames || sample_age_ms(now,gray_last_ms)>200U ||

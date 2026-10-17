@@ -25,11 +25,10 @@ TrackFeature search_feature(uint8_t bits,uint8_t corners,int32_t progress)
 }
 
 GarageType search_classify(const uint16_t samples[RANGE_SAMPLE_COUNT],
-                           int32_t offset_mm,uint16_t *median_mm)
+                           uint16_t *median_mm)
 {
   uint16_t sorted[RANGE_SAMPLE_COUNT];
   *median_mm=0U;
-  if(offset_mm<0 || offset_mm>=SIDE_WALL_DEPTH_MM-20)return GARAGE_UNKNOWN;
   for(uint8_t i=0;i<RANGE_SAMPLE_COUNT;i++){
     if(samples[i]<20U || samples[i]>2000U)return GARAGE_UNKNOWN;
     sorted[i]=samples[i];
@@ -39,10 +38,6 @@ GarageType search_classify(const uint16_t samples[RANGE_SAMPLE_COUNT],
       if(sorted[j]<sorted[i]){uint16_t t=sorted[i];sorted[i]=sorted[j];sorted[j]=t;}
   *median_mm=sorted[RANGE_SAMPLE_COUNT/2U];
   if(sorted[RANGE_SAMPLE_COUNT-1U]-sorted[0]>RANGE_SPREAD_MAX_MM)return GARAGE_UNKNOWN;
-  int32_t depth=*median_mm+offset_mm;
-  if(depth>=SIDE_WALL_DEPTH_MM-DEPTH_TOLERANCE_MM &&
-     depth<=SIDE_WALL_DEPTH_MM+DEPTH_TOLERANCE_MM)return GARAGE_SIDE;
-  if(depth>=REVERSE_WALL_DEPTH_MM-DEPTH_TOLERANCE_MM &&
-     depth<=REVERSE_WALL_DEPTH_MM+DEPTH_TOLERANCE_MM)return GARAGE_REVERSE;
-  return GARAGE_UNKNOWN;
+  /* 直接比较原始读数；237 mm 归侧停，不加安装偏移量。 */
+  return *median_mm<=LASER_TYPE_THRESHOLD_MM ? GARAGE_SIDE : GARAGE_REVERSE;
 }

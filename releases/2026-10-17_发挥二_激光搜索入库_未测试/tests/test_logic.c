@@ -4,15 +4,25 @@
 int main(void)
 {
   uint16_t samples[5],median;unsigned checks=0;
-  for(unsigned mm=20;mm<=500;mm++){
+  assert(LASER_TYPE_THRESHOLD_MM==237U);
+  assert(LASER_SIDE_REFERENCE_MM==159U && LASER_REVERSE_REFERENCE_MM==315U);
+  for(unsigned mm=0;mm<=2001;mm++){
     for(unsigned i=0;i<5;i++)samples[i]=mm;
-    GarageType expected=(mm>=101&&mm<=151)?GARAGE_SIDE:(mm>=201&&mm<=251)?GARAGE_REVERSE:GARAGE_UNKNOWN;
-    assert(search_classify(samples,74,&median)==expected);checks++;
+    GarageType expected=(mm<20||mm>2000)?GARAGE_UNKNOWN:mm<=237?GARAGE_SIDE:GARAGE_REVERSE;
+    assert(search_classify(samples,&median)==expected);
+    if(expected!=GARAGE_UNKNOWN)assert(median==mm);
+    checks++;
   }
-  uint16_t noisy[5]={126,127,126,170,125};
-  assert(search_classify(noisy,74,&median)==GARAGE_UNKNOWN);
-  noisy[3]=0;assert(search_classify(noisy,74,&median)==GARAGE_UNKNOWN);
-  assert(search_classify(noisy,-1,&median)==GARAGE_UNKNOWN);
+  uint16_t noisy[5]={159,160,159,190,158};
+  assert(search_classify(noisy,&median)==GARAGE_UNKNOWN);
+  noisy[3]=0;assert(search_classify(noisy,&median)==GARAGE_UNKNOWN);
+  uint16_t boundary[5]={238,236,237,235,239};
+  assert(search_classify(boundary,&median)==GARAGE_SIDE && median==237);
+  boundary[2]=240;
+  assert(search_classify(boundary,&median)==GARAGE_REVERSE && median==238);
+  uint16_t spread[5]={150,159,160,161,175};
+  assert(search_classify(spread,&median)==GARAGE_SIDE && median==160);
+  spread[4]=176;assert(search_classify(spread,&median)==GARAGE_UNKNOWN);
   for(uint8_t edge=0;edge<4;edge++){
     int32_t p=edge?search_corner_counts[edge-1]+2500:1500;
     assert(search_feature(0x18,edge,p)==FEATURE_LINE);
@@ -33,5 +43,5 @@ int main(void)
   assert(!search_plan_entry(GARAGE_UNKNOWN));
   assert(search_plan_entry(GARAGE_SIDE) && reference_count==7 && reference_steps[5].target==1347);
   assert(search_plan_entry(GARAGE_REVERSE) && reference_count==5 && reference_steps[3].target==9000);
-  printf("PASS LOGIC: %u range values plus noise, limits, four-edge features and plans\n",checks);
+  printf("PASS LOGIC: %u range values (0..2001 mm), raw 237 mm split (<= SIDE, > REVERSE), 159/315 mm references, median/noise/limits, four-edge features and plans\n",checks);
 }

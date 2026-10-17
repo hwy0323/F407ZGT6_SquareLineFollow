@@ -109,7 +109,7 @@ int main(void){
   unsigned runs=0;
   /* Both bay types at arbitrary positions on every edge, not fixed midpoints. */
   for(unsigned edge=0;edge<4;edge++)for(int type=1;type<=2;type++){
-    to_measure(edge);readings(type==GARAGE_SIDE?126:226);
+    to_measure(edge);readings(type==GARAGE_SIDE?159:315);
     assert(garage_type==(GarageType)type && auto_phase==PROBE_BACK && pivot_active && laser_reads==8);
     assert(reference_steps[1].target==PROBE_COUNTS);
     finish_motion(0);search_tick(fake_now);assert(auto_phase==ENTRY);
@@ -117,19 +117,30 @@ int main(void){
     while(auto_phase==ENTRY){finish_motion(0);advance(150);search_tick(fake_now);}
     assert(auto_phase==DONE && !left_command && reference_next==(type==GARAGE_SIDE?7:5));runs++;
   }
-  to_measure(1);readings(176);assert(auto_phase==FAILED && reference_next==1 && strstr(events,"LASER_TYPE_UNKNOWN"));
+  /* Classifier boundaries must select the actual parking workflow. */
+  for(unsigned mm=236;mm<=238;mm++){
+    to_measure(1);readings(mm);
+    assert(garage_type==(mm<=237?GARAGE_SIDE:GARAGE_REVERSE) && auto_phase==PROBE_BACK);
+    assert(strstr(events,"threshold_mm=237,raw_range=1"));
+  }
+  /* Excess spread still fails even when the median is below the threshold. */
+  to_measure(1);readings(159);assert(auto_phase==PROBE_BACK);
+  to_measure(1);laser_distance_mm=159;
+  for(int i=0;i<7;i++){advance(20);search_tick(fake_now);}
+  laser_distance_mm=190;advance(20);search_tick(fake_now);
+  assert(auto_phase==FAILED && reference_next==1 && strstr(events,"LASER_TYPE_UNKNOWN"));
   to_measure(1);laser_mode=1;advance(20);search_tick(fake_now);assert(auto_phase==FAILED && !left_command);
   to_measure(1);laser_mode=2;advance(MEASURE_TIMEOUT_MS+1);search_tick(fake_now);assert(auto_phase==FAILED);
-  to_measure(1);laser_range_status=4;readings(126);assert(auto_phase==MEASURE && range_used==0);
+  to_measure(1);laser_range_status=4;readings(159);assert(auto_phase==MEASURE && range_used==0);
   advance(MEASURE_TIMEOUT_MS);search_tick(fake_now);assert(auto_phase==FAILED);
-  to_measure(1);readings(226);finish_motion(41);search_tick(fake_now);assert(auto_phase==FAILED);
+  to_measure(1);readings(315);finish_motion(41);search_tick(fake_now);assert(auto_phase==FAILED);
   /* Return heading is independently checked before parking. */
-  to_measure(1);readings(226);finish_motion(0);imu_yaw_x100+=201;search_tick(fake_now);assert(auto_phase==FAILED);
+  to_measure(1);readings(315);finish_motion(0);imu_yaw_x100+=201;search_tick(fake_now);assert(auto_phase==FAILED);
   /* Actual forward endpoint, rather than nominal, is reversed. */
   reset();garage_origin[0]=garage_origin[1]=garage_origin[2]=0;garage_yaw=imu_yaw_x100;
   reference_start(fake_now);finish_motion(30);auto_phase=MEASURE;phase_ms=fake_now;
   range_used=range_discard=0;range_seen=0;last_range_poll=fake_now;
-  laser_distance_mm=226;for(int i=0;i<5;i++){advance(40);search_tick(fake_now);}
+  laser_distance_mm=315;for(int i=0;i<5;i++){advance(40);search_tick(fake_now);}
   assert(reference_steps[1].target==317 && auto_phase==PROBE_BACK);
   /* A true square bend remains a bend, not a bay. */
   reset();start_run();odom_total[0]=-5100;gray_value=0x0F;

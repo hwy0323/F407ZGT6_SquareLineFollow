@@ -8,5 +8,5 @@ typedef enum { FEATURE_LINE, FEATURE_CORNER, FEATURE_GARAGE,
 extern const int32_t search_corner_counts[4];
 TrackFeature search_feature(uint8_t bits, uint8_t corners, int32_t progress);
 GarageType search_classify(const uint16_t samples[RANGE_SAMPLE_COUNT],
-                           int32_t offset_mm, uint16_t *median_mm);
+                           uint16_t *median_mm);
 #endif

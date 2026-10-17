@@ -1,2 +1,2 @@
-﻿PASS LOGIC: 481 range values plus noise, limits, four-edge features and plans
+PASS LOGIC: 2002 range values (0..2001 mm), raw 237 mm split (<= SIDE, > REVERSE), 159/315 mm references, median/noise/limits, four-edge features and plans
 PASS APP: 8 full bay/edge workflows, probe return, valid/frozen/error ranges, corners, stops, command and KEY gates

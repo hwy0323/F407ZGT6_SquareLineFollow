@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 New-Item -ItemType Directory -Path (Join-Path $PSScriptRoot '验证'),(Join-Path $PSScriptRoot '固件'),(Join-Path $PSScriptRoot 'tests/build') -Force | Out-Null
 Push-Location $PSScriptRoot
 try {
-  $env:ZIG_GLOBAL_CACHE_DIR=Join-Path $PSScriptRoot 'tests/build/zig-cache'
+  if(-not $env:ZIG_GLOBAL_CACHE_DIR){$env:ZIG_GLOBAL_CACHE_DIR=Join-Path $PSScriptRoot 'tests/build/zig-cache'}
   $results=@()
   foreach($test in @('logic','app')) {
     & $ZigPath cc -std=c11 -Wall -Wextra -Werror "tests/test_$test.c" search_logic.c entry_plan.c -o "tests/build/test_$test.exe"

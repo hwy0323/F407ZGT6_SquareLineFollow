@@ -103,8 +103,9 @@ int main(void)
   pwm_init();stop_motors();laser_init();
   send_text("READY," ENTRY_NAME ",BOOT_STOPPED,KEY=start_stop,START=" SEARCH_START_FRAME "\\n,X=stop,once_per_reset\r\n");
   char boot[140];
-  snprintf(boot,sizeof(boot),"LASER_INIT,status=%u,id=%04X,offset_mm=%d,estimated=1\r\n",
-           laser_status,laser_model_id,LASER_RIGHT_OFFSET_MM);send_text(boot);
+  snprintf(boot,sizeof(boot),"LASER_INIT,status=%u,id=%04X,threshold_mm=%u,side_ref_mm=%u,reverse_ref_mm=%u,raw_range=1\r\n",
+           laser_status,laser_model_id,LASER_TYPE_THRESHOLD_MM,
+           LASER_SIDE_REFERENCE_MM,LASER_REVERSE_REFERENCE_MM);send_text(boot);
   (void)HAL_UART_Transmit(&imu_uart,(uint8_t*)imu_full,7,20);
   (void)HAL_UART_Transmit(&imu_uart,(uint8_t*)imu_start,7,20);last_imu=HAL_GetTick();
   search_read_key(last_imu);
