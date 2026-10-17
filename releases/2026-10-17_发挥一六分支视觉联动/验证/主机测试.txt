@@ -1,0 +1,4 @@
+﻿PASS NAV: all 8 garage-type layouts x 3 target edges = 24 routes; six color/shape branches; size-dependent first-line windows; per-edge line counts; gap/missing/extra/corrupt-plan stops
+PASS MOTION: all six branch workflows, 3/5-step selection, exact endpoints and accepted-offset boundaries, independent edge/line-count guard, key/stale/stall/time-limit stops
+PASS TASK4 APP: all six cards, pose 4 before SET4, 200ms A-line preflight, full-frame start, duplicate/cancel/failure/link/session/UART stops, once-per-reset
+PASS PWM: PA2/CH3 upper, PA3/CH4 lower, 50Hz, boot zero duty, both poses, settling/wrap and init failure
