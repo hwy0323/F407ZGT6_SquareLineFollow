@@ -1,6 +1,6 @@
-# 第四题：DA 倒车入库（未测试）
+# 第四题：DA 倒车入库（已实测，用户确认）
 
-**未测试：只完成编译和主机测试，没有烧录或实车验证。**
+**2026-10-17 用户确认：已由另一个 Codex 完成 DA 实车测试。** 本次会话跳过 DA 运行，未取得另一会话的原始串口、烧录日志或固件哈希，因此不把 BC／CD 日志挪用为 DA 证据。[实测来源说明](../实测记录/README.md)。归档 BIN 不变，文件名中的 UNTESTED 保留创建时身份。
 
 [归档 BIN](固件/F407ZGT6_Task4_DA_Reverse_UNTESTED_STBY_PB15.bin) · [ELF](固件/F407ZGT6_Task4_DA_Reverse_UNTESTED_STBY_PB15.elf) · [完整说明和接线](../README.md) · [共用动作表](../common/entry_plan.c)
 
