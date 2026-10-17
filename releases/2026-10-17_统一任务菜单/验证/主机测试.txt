@@ -1,0 +1,8 @@
+PASS MENU: 11 entries, PE0 on only for 6-1/6-2/6-3/6-4 selection, wrap/reset/invalid-state laser off, two keys (PA15 next only / PE6 start), held/bounce/stop guards, full-frame commands, 5 direct dispatches, four real-protocol Roman targets, six real-protocol card branches, servo-before-SET, 200ms preflight, no duplicate restart, link/failure/cancel stops, completion-vs-protection, four reserved entries no motion, stopped reset-to-menu
+PASS OLED UI: all 11 task labels including 6-1/6-2/6-3/6-4, selected center and adjacent rows, preserved Git menu font/layout
+PASS NAV: all 8 garage-type layouts x 3 target edges = 24 routes; six color/shape branches; size-dependent first-line windows; per-edge line counts; gap/missing/extra/corrupt-plan stops
+PASS MOTION: all six branch workflows, 3/5-step selection, exact endpoints and accepted-offset boundaries, independent edge/line-count guard, key/stale/stall/time-limit stops
+PASS TASK4 APP: all six cards, pose 4 before SET4, 200ms A-line preflight, full-frame start, duplicate/cancel/failure/link/session/UART stops, once-per-reset
+PASS PWM: PA2/CH3 upper, PA3/CH4 lower, 50Hz, boot zero duty, both poses, settling/wrap and init failure
+PASS LOGIC: 2002 range values (0..2001 mm), raw 237 mm split (<= SIDE, > REVERSE), 159/315 mm references, median/noise/limits, four-edge features and plans
+PASS APP: 8 full bay/edge workflows, probe return, valid/frozen/error ranges, corners, stops, command and KEY gates

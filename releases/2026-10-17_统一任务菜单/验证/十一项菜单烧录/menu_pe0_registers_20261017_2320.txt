@@ -1,0 +1,28 @@
+Open On-Chip Debugger 0.12.0+dev-00623-g0ba753ca7 (2025-04-30-14:17) [https://github.com/STMicroelectronics/OpenOCD]
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+swd
+adapter speed: 100 kHz
+Info : Using CMSIS-DAPv2 interface with VID:PID=0xfaed:0x4873, serial=d6db18e7
+Info : CMSIS-DAP: SWD supported
+Info : CMSIS-DAP: JTAG supported
+Info : CMSIS-DAP: Atomic commands supported
+Info : CMSIS-DAP: UART via USB COM port supported
+Info : CMSIS-DAP: FW Version = V208 v0.1
+Info : CMSIS-DAP: Interface Initialised (SWD)
+Info : SWCLK/TCK = 1 SWDIO/TMS = 1 TDI = 1 TDO = 1 nTRST = 0 nRESET = 1
+Info : CMSIS-DAP: Interface ready
+Info : clock speed 100 kHz
+Info : SWD DPIDR 0x2ba01477
+Info : [stm32f4x.cpu] Cortex-M4 r0p1 processor detected
+Info : [stm32f4x.cpu] target has 6 breakpoints, 4 watchpoints
+Info : [stm32f4x.cpu] Examination succeed
+Info : gdb port disabled
+0x40021000: 00000001 
+0x40021014: 00000000 
+0x40020414: 00000000 
+0x40010034: 00000000 00000000 00000000 00000000 
+0x200006c0: 4d454e55 00000000 00000000 00000000 00000001 00000000 00000000 00000000 
+0x200006e0: 00000000 0000000b 
+shutdown command invoked

@@ -1,0 +1,9 @@
+HOST,TASK12_ONE_LAP,user_confirmed_A_to_B_no_garage_lines,NO_FIRMWARE_CHANGE
+MENU,STATUS,1-1,phase=0,oled=1,vision=0
+MENU,STATUS,1-1,phase=0,oled=1,vision=0
+MENU,STATUS,1-1,phase=0,oled=1,vision=0
+MENU,STATUS,1-1,phase=0,oled=1,vision=0
+HOST,TX,@MENU:NEXT,newline
+MENU,STATUS,1-1,phase=0,oled=1,vision=0
+MENU,STATUS,1-1,phase=0,oled=1,vision=0
+HOST,TX,X,ERROR_STOP
